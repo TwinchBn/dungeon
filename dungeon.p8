@@ -5,59 +5,190 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
+	log={}
+	--make_map()
 	make_player()
 end
 
 function _update()
-	move_player()
+	update_player()
 end
 
 function _draw()
 	cls()
+	camera(0,0)
 	map(0,0)
+	camera()
 	draw_player()
+	debug()
+end
+
+function debug()
+	local gap = 3
+	local w = 0
+	for i=1,#log do
+		if #(log[i])*4 > w then
+			w=#(log[i])*4
+		end
+	end
+	w += gap*2
+	local h = #log*(5+gap)+gap
+	local x,y = 127-w,127-h
+	rectfill(x,y,x+w,y+h,1)
+	rect(x,y,x+w,y+h,8)
+	for i = 1,#log do
+		print(log[i],x+gap,y+gap+(i-1)*(5+gap),6)
+	end
 end
 -->8
 --player
 function make_player()
-	p={}
-	p.x=0
-	p.y=0
-	p.speed=1
+	p={x=0,y=9,sp=3,cell=0,
+		speed=1,jforce=5,
+		xscale=1,flip=false}
 	p.anim={}
-	p.anim.stand={sp={3},x=0,y=1,w=5,h=7}
-	p.anim.walk={sp={3},x=0,y=1,w=5,h=7}
-	p.anim.crouch={sp={2},x=0,y=2,w=4,h=6}
-	p.anim.jump={sp={1},x=0,y=1,w=5,h=7}
-	p.anim.climb={sp={4,5},x=1,y=1,w=6,h=7}
+		p.anim.stand={sp={3},x=0,y=1,w=5,h=7,name="stand"}
+		p.anim.walk={sp={3,7,3,8},x=0,y=1,w=5,h=7,name="walk"}
+		p.anim.crouch={sp={2},x=0,y=2,w=4,h=6,name="crouch"}
+		p.anim.jump={sp={1},x=0,y=1,w=5,h=7,name="jump"}
+		p.anim.climb={sp={4,5},x=1,y=1,w=6,h=7,	name="climb"}
+	p.inventory={}
+	p.weapons={}
 	p.state=p.anim.stand
 end
 
-function move_player()
-	if (p.state==p.anim.stand
-		or p.state==p.anim.walk) then
-		walk()
-	end
+function update_player()
+	p.tx,p.ty=p.x,p.y
+	p.cell=mget(p.tx/8,p.ty/8)
+	
+	walk()
+	climb()
+	jump()
+	log_p()
+
+	--if (p.state==p.anim.stand
+		--or p.state==p.anim.walk) then
+		--walk()
+	--end
+end
+
+function log_p()
+	log={}
+	add(log,"x,y: "..p.x..","..p.y)
+	add(log,"w,h: "..p.state.w..","..p.state.h)
+	add(log,"sprite: "..p.state.sp[1])
+	add(log,"state: "..p.state.name)
+	add(log,"xscale: "..p.xscale)
+	add(log,"map cell: "..p.cell)
 end
 
 function walk()
-	local x,y = p.x,p.y
-	if (btn(0)) x-=speed
-	if (btn(1)) x+=speed
-	if (collide(p) == false) then
-		p.x,p.y = x,y
+	if btn(0) then
+		p.flip=true
+		p.tx-=p.speed
+	end
+	if btn(1) then
+		p.flip=false
+		p.tx+=p.speed
+	end
+	
+	--if (collide_all == false) then
+	--if p.tx<0 or
+	--	fget(mget(p.tx/8,p.ty/8),0)
+	--then
+	if not trymove() then
+		p.tx=p.x
+	end
+	
+	if (p.x != p.tx) then	
+		p.x = p.tx
 		p.state = p.anim.walk
-	else
-		p.state = p.anim.stand
+	end
+	p.xscale = p.flip and -1 or 1
+	--else
+		--p.state = p.anim.stand
+	--end
+end
+
+function climb()
+	local y=p.y
+	if fget(mget(p.x/8,p.y/8),1) then
+		if btn(2) then
+			p.y -= p.speed
+			p.state=p.anim.climb
+		end
+		if btn(3) then
+			p.y += p.speed
+			p.state=p.anim.climb
+		end
 	end
 end
+
+
+function trymove()
+	local xmod=p.state.w-p.state.x
+	local ymod=p.state.h-p.state.y
+	if p.tx<p.x then -- left
+		if bonk(p.tx-xmod,p.ty) or
+					bonk(p.tx-xmod,p.ty+ymod) then
+			return false
+		end	
+	elseif p.tx>p.x then --right
+		if bonk(p.tx+xmod,p.ty) or
+					bonk(p.tx+xmod,p.ty+ymod) then
+			return false
+		end	
+	elseif p.ty<p.x then --up
+		if bonk(p.tx,p.ty) or
+					bonk(p.tx+xmod,p.ty) then
+			return false
+		end	
+	elseif p.ty>p.y then --down
+		if bonk(p.tx,p.ty+ymod) or
+					bonk(p.tx+xmod,p.ty+ymod) then
+			return false
+		end	
+	end
+	return true
+end
+
+function bonk(x,y)
+	if fget(mget(x/8,y/8),0) then
+		return true
+	else
+		return false
+	end
+end
+
+
+
+
+
+function jump()
+	if (btnp(❎)) then
+		local up=mget(p.x/8,p.y/8)
+		if not fget(up,0) then
+			p.jumping=true;
+			p.dy+=p.jforce
+		end
+	end
+end
+
 
 
 
 function draw_player()
-	spr(p.state.spr[0], 
-	p.x+p.state.x, 
-	p.y+p.state.y)
+	p.sp=p.state.sp[1]
+	if (p.flip) then
+		spr(p.sp,
+		p.x+p.state.x-p.state.w,p.y-p.state.y,
+		1,1,p.flip)
+	else
+		spr(p.sp,p.x-p.state.x,p.y-p.state.y)
+	--p.x+p.state.w*p.xscale/2, 
+	--p.x+p.state.x, 
+	--p.y+p.state.y,)
+	end
 end
 -->8
 --enemies
@@ -78,6 +209,50 @@ aliens home,music jungle
 
 
 ]]
+-->8
+--collision
+
+function hitwall()
+	--facing left
+	local mod=(p.state.w-p.state.x)*p.xscale
+	local x=p.tx+mod*p.xscale
+	local y=p.ty-p.state.y
+	local top=mget(x+mod,y)
+	local btm=mget(x+mod,y+p.state.h)
+
+	if fget(top,0) or 
+				fget(btm,0) then
+		return true
+	else
+		return false
+	end
+end
+
+function collide_all()
+	for e in all (enemies) do
+		if (collide(p,e)) return true
+	end
+	for w in all (walls) do
+		if (collide(p,w)) return true
+	end
+	return false
+end
+
+function collide(p,e)
+	local x1,y1,w1,h1 = 
+		p.x+p.state.x,
+		p.y+p.state.y,
+		p.state.w,p.state.h
+	local x2,y2,w2,h2 =
+		e.x,e.y,e.w,e.h
+	
+	if (x1+w1>x2 and x2+w2>x1 and
+					y1+h1>y2 and y2+w2>y1) then
+	 return true
+	else
+		return false
+	end
+end
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000ce0000000000000c000000001c00c0000c00c1000000000c0000000c000000000000000000000000000000000000000000000000000000000000000
@@ -199,6 +374,9 @@ __gfx__
 00000000000000000000000000000000000000009494949494949400000000008435008585858500000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000008484848585858500000000000000000000000000000000000000000000000000
+__gff__
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010100000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000585851535800530000004200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
