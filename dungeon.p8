@@ -1,7 +1,68 @@
 pico-8 cartridge // http://www.pico-8.com
 version 18
 __lua__
+--dungeon
+--by ben + jeffu warmouth
 
+function _init()
+	make_player()
+end
+
+function _update()
+	move_player()
+end
+
+function _draw()
+	cls()
+	map(0,0)
+	draw_player()
+end
+-->8
+--player
+function make_player()
+	p={}
+	p.x=0
+	p.y=0
+	p.speed=1
+	p.anim={}
+	p.anim.stand={sp={3},x=0,y=1,w=5,h=7}
+	p.anim.walk={sp={3},x=0,y=1,w=5,h=7}
+	p.anim.crouch={sp={2},x=0,y=2,w=4,h=6}
+	p.anim.jump={sp={1},x=0,y=1,w=5,h=7}
+	p.anim.climb={sp={4,5},x=1,y=1,w=6,h=7}
+	p.state=p.anim.stand
+end
+
+function move_player()
+	if (p.state==p.anim.stand
+		or p.state==p.anim.walk) then
+		walk()
+	end
+end
+
+function walk()
+	local x,y = p.x,p.y
+	if (btn(0)) x-=speed
+	if (btn(1)) x+=speed
+	if (collide(p) == false) then
+		p.x,p.y = x,y
+		p.state = p.anim.walk
+	else
+		p.state = p.anim.stand
+	end
+end
+
+
+
+function draw_player()
+	spr(p.state.spr[0], 
+	p.x+p.state.x, 
+	p.y+p.state.y)
+end
+-->8
+--enemies
+-->8
+--map
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000ce0000000000000c000000001c00c0000c00c1000000000000000000000000000000000000000000000000000000000000000000000000000000000
