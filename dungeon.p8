@@ -44,27 +44,49 @@ end
 -->8
 --player
 function make_player()
-	p={x=0,y=8,sp=3,cell=0,
-		speed=1,jforce=-2,
-		w=5,h=6,dy=0,falling=true,
-		jumps=0,maxjumps=2,
+	p={
+		--attributes
+		x=0,y=8,tx=0,ty=8,--pos
+		speed=1,--walk speed
+		jforce=-2,--jump force
+		jumps=0,maxjumps=2,--jumps
+		
+		--temp stuff
+		sp=3,w=5,h=6,--start sprite
+		cell=0,--map cell sprite
+		dy=0,--for gravity
 		gnd=false,
-		xscale=1,flip=false}
-	p.anim={}
+		xscale=1,flip=false,--flip
+		frame=0,
+		
+		anim={
+			stand={sp={3},x=0,y=1,w=5,h=7,name="stand"},
+			walk={sp={3,7,3,8},x=0,y=1,w=5,h=7,name="walk"},
+			crouch={sp={2},x=0,y=2,w=5,h=6,name="crouch"},
+			jump={sp={1},x=0,y=1,w=5,h=7,name="jump"},
+			climb={sp={4,5},x=1,y=1,w=6,h=7,	name="climb"}
+			}, --end anim
+		inventory={},
+		weapons={},
+		} --end p
+		p.state=p.anim.stand
+		
+		--[[
 		p.anim.stand={sp={3},
 			x=0,y=1,w=5,h=7,name="stand"}
 		p.anim.walk={sp={3,7,3,8},
 			x=0,y=1,w=5,h=7,name="walk"}
 		p.anim.crouch={sp={2},
-			x=0,y=2,w=4,h=6,name="crouch"}
+			x=0,y=2,w=5,h=6,name="crouch"}
 		p.anim.jump={sp={1},
 			x=0,y=1,w=5,h=7,name="jump"}
 		p.anim.climb={sp={4,5},
 			x=1,y=1,w=6,h=7,	name="climb"}
 	p.inventory={}
 	p.weapons={}
-	p.state=p.anim.stand
+	p.falling=true,
 	p.frame=0
+	--]]
 end
 
 function update_player()
@@ -137,7 +159,7 @@ function move()
 		p.state = p.anim.stand
 	end
 
-end
+end --move()
 
 function jump()
 	if (onladder()) return
@@ -152,11 +174,11 @@ function jump()
 			--p.y+=p.jforce
 		--end
 	end
-end
+end --jump()
 
 function onladder()
 	return fget(p.cell,1)
-end
+end --onladder()
 
 function fall()
 	if (onladder()) return
@@ -176,7 +198,7 @@ function fall()
 			p.gnd=false
 		end
 	end
-end
+end --fall()
 
 function trymove()
 	p.w=(p.state.w-p.state.x-1)*p.xscale
@@ -188,7 +210,8 @@ function trymove()
 	add(log,"xmod: "..p.w..","..p.h)
 
 	return not (hithead() or
-		hitground() or hitbounds())
+													hitground() or
+													hitbounds())
 	--return not (bonk4() or hitbounds())
 	--[[
 	if bonk4() or hitbounds() then
@@ -230,12 +253,12 @@ function trymove()
 	end
 	return true
 	--]]
-end
+end --trymove()
 
 function bonk(x,y)
 	add(log,"bonk: "..x..","..y)
 	return fget(mget(x/8,y/8),0)
-end
+end --bonk
 
 function bonk4()
 	if bonk(p.tx,p.ty) or
@@ -245,14 +268,14 @@ function bonk4()
 				hitground() then
 		return true
 	end
-end
+end --bonk4()
 
 function hithead()
 	if bonk(p.tx,p.ty) or
 				bonk(p.tx+p.w,p.ty) then
 		return true
 	end
-end
+end --hithead()
 
 function hitbounds()
 	if p.tx<0 or p.tx+p.w<0 or
@@ -261,14 +284,14 @@ function hitbounds()
 				p.ty>63*8 or p.ty+p.h>63*8 then
 		return true
 	end
-end
+end --hitbounds()
 
 function hitground()
 	if bonk(p.tx,p.ty+p.h) or
 				bonk(p.tx+p.w,p.ty+p.h) then
 		return true
 	end
-end
+end --hitground()
 
 function draw_player(showrect)
 	p.sp=p.state.sp[1]
@@ -280,13 +303,13 @@ function draw_player(showrect)
 	end
 	spr(p.sp,x,y,1,1,p.flip)
 	
----[[ bounding box
-if showrect then
-	rect(x,y,x+p.state.w,y+p.state.h,6)
-	rectfill(x,y,x,y,8)-- red x,y
-	rectfill(p.x,p.y,p.x,p.y,9)
-end
---]]
+-- bounding box
+	if showrect then
+		rect(x,y,x+p.state.w,y+p.state.h,6)
+		rectfill(x,y,x,y,8)-- red x,y
+		rectfill(p.x,p.y,p.x,p.y,9)
+	end
+end --draw_player()
 	
 --[[
 	if (p.flip) then
@@ -304,7 +327,7 @@ end
 	--p.y+p.state.y,)
 	end
 --]]
-end
+
 
 --[[
 function climb()
