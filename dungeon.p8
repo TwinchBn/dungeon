@@ -44,20 +44,20 @@ end
 -->8
 --player
 function make_player()
-	p={
-		--attributes
-		x=0,y=8,tx=0,ty=8,--pos
+	p={     --attributes
+		x=0,y=40,--pos
 		speed=1,--walk speed
-		jforce=-2,--jump force
+		jforce=-3,--jump force
 		jumps=0,maxjumps=2,--jumps
 		
 		--temp stuff
+		tx=0,ty=8,--temp x,y
 		sp=3,w=5,h=6,--start sprite
 		cell=0,--map cell sprite
 		dy=0,--for gravity
-		gnd=false,
+		gnd=false,--on ground?
 		xscale=1,flip=false,--flip
-		frame=0,
+		frame=0,--current anim frame
 		
 		anim={
 			stand={sp={3},x=0,y=1,w=5,h=7,name="stand"},
@@ -68,45 +68,26 @@ function make_player()
 			}, --end anim
 		inventory={},
 		weapons={},
-		} --end p
-		p.state=p.anim.stand
-		
-		--[[
-		p.anim.stand={sp={3},
-			x=0,y=1,w=5,h=7,name="stand"}
-		p.anim.walk={sp={3,7,3,8},
-			x=0,y=1,w=5,h=7,name="walk"}
-		p.anim.crouch={sp={2},
-			x=0,y=2,w=5,h=6,name="crouch"}
-		p.anim.jump={sp={1},
-			x=0,y=1,w=5,h=7,name="jump"}
-		p.anim.climb={sp={4,5},
-			x=1,y=1,w=6,h=7,	name="climb"}
-	p.inventory={}
-	p.weapons={}
-	p.falling=true,
-	p.frame=0
-	--]]
+	} --end p
+	p.state=p.anim.stand
+	p.tx,p.ty=p.x,p.y
 end
 
 function update_player()
-	p.frame+=1
-	p.tx,p.ty=p.x,p.y
 	p.cell=mget(p.tx/8,p.ty/8)
 	
 	move() --includes climb
 	jump()
 	fall()
+	
+	--update animation
+	p.frame+=1
 	p.sp=p.state.sp[p.frame%#p.state.sp]
-	--log_p()
-
-	--if (p.state==p.anim.stand
-		--or p.state==p.anim.walk) then
-		--walk()
-	--end
+	--log_player()
 end
 
-function log_p()
+--[[
+function log_player()
 	log={}
 	add(log,"x,y: "..p.x..","..p.y)
 	add(log,"w,h: "..p.state.w..","..p.state.h)
@@ -115,6 +96,7 @@ function log_p()
 	add(log,"xscale: "..p.xscale)
 	add(log,"map cell: "..p.cell)
 end
+--]]
 
 function move()
 
@@ -134,7 +116,7 @@ function move()
 	
 	--climbing
 	if onladder() then
-		falling=false
+		--falling=false
 		if btn(2) then
 			p.ty -= p.speed
 		end
@@ -147,6 +129,7 @@ function move()
 		p.tx,p.ty=p.x,p.y
 	end
 	
+	--setting animation states
 	if (p.y != p.ty) then
 		p.y = p.ty
 		p.state=p.anim.climb
@@ -167,8 +150,8 @@ function jump()
 					p.jumps<p.maxjumps) then
 		--local up=mget(p.x/8,p.y/8)
 		--if not fget(up,0) then
-			p.falling=true
-			p.dy+=p.jforce
+			--p.falling=true
+			p.dy=p.jforce
 			--p.y-=4
 			p.jumps += 1
 			--p.y+=p.jforce
@@ -190,6 +173,8 @@ function fall()
 			p.dy=0
 			p.gnd=true
 			p.y=flr(p.y/8)*8+p.state.y
+		elseif hithead() then
+			p.dy=0
 		else
 			p.y+=p.dy
 		end
@@ -209,50 +194,10 @@ function trymove()
 	add(log,"anim w,h: "..p.state.w..","..p.state.h)
 	add(log,"xmod: "..p.w..","..p.h)
 
-	return not (hithead() or
-													hitground() or
-													hitbounds())
-	--return not (bonk4() or hitbounds())
-	--[[
-	if bonk4() or hitbounds() then
-		return false
-	else
-		return true
-	end
-	--]]
-	--[[
-	if bonk(p.tx,p.ty) or
-				bonk(p.tx,p.ty+ymod) or
-				bonk(p.tx+xmod,p.ty) or
-				bonk(p.tx+xmod,p.ty+ymod) or
-				p.tx<0 or p.tx+xmod<0 or
-				p.tx>127*8 or p.tx+xmod>127*8 or
-				p.ty<0 or p.ty+ymod<0 or
-				p.ty>63*8 or p.ty+ymod>63*8 then
-		return false
-	else
-		return true
-	end
-	--]]
-	--[[
-	if p.tx != p.x then --horiz
-		if bonk(p.tx+xmod,p.ty) or
-					bonk(p.tx+xmod,p.ty+ymod) then
-			return false
-		end	
-	elseif p.ty<p.y then --up
-		if bonk(p.tx,p.ty) or
-					bonk(p.tx+xmod,p.ty) then
-			return false
-		end	
-	elseif p.ty>p.y then --down
-		if bonk(p.tx,p.ty+ymod) or
-					bonk(p.tx+xmod,p.ty+ymod) then
-			return false
-		end	
-	end
-	return true
-	--]]
+	local hit = hithead() or	
+		 hitground() or hitbounds()
+	return not hit
+
 end --trymove()
 
 function bonk(x,y)
@@ -287,46 +232,39 @@ function hitbounds()
 end --hitbounds()
 
 function hitground()
+	local x1,y1,x2,y2 = pbox(p.tx,p.ty)
 	if bonk(p.tx,p.ty+p.h) or
 				bonk(p.tx+p.w,p.ty+p.h) then
 		return true
 	end
 end --hitground()
 
+
+function pbox(x,y)
+	--return player hit box
+	local x1=x-p.state.w/2
+	local x2=x+p.state.w/2
+	local y1=y+8-p.state.h
+	local y2=y+8
+	return x1,y1,x2,y2
+end --pbox()
+
+
 function draw_player(showrect)
 	p.sp=p.state.sp[1]
-	--spr(p.sp,p.x-6,p.y,1,1,p.flip)
-	local x=p.x+p.state.x
-	local y=p.y+p.state.y
-	if (p.flip) then
-		x=p.x+p.state.x-p.state.w
-	end
-	spr(p.sp,x,y,1,1,p.flip)
+
+	local x1,y1,x2,y2 = pbox(p.x,p.y)
+	local xsp=x1
+	if (p.flip) xsp=x1-8+p.state.w
+	spr(p.sp,xsp,y1,1,1,p.flip)
 	
 -- bounding box
 	if showrect then
-		rect(x,y,x+p.state.w,y+p.state.h,6)
-		rectfill(x,y,x,y,8)-- red x,y
+		rect(x1,y1,x2,y2,6)
 		rectfill(p.x,p.y,p.x,p.y,9)
 	end
 end --draw_player()
 	
---[[
-	if (p.flip) then
-		spr(p.sp,
-						p.x+p.state.x-p.state.w,
-						p.y-p.state.y,
-						1,1,p.flip)
-	else
-		spr(p.sp,
-						p.x-p.state.x,
-						p.y-p.state.y,
-						1,1,p.flip)
-	--p.x+p.state.w*p.xscale/2, 
-	--p.x+p.state.x, 
-	--p.y+p.state.y,)
-	end
---]]
 
 
 --[[
@@ -529,7 +467,7 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000008484848585858500000000000000000000000000000000000000000000000000
 __gff__
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010100000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010101000000000000000500000000000100020080800000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
