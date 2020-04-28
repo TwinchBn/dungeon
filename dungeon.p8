@@ -5,34 +5,322 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
+	log={}
+	make_items()
+	--make_map()
+	gravity=.2
 	make_player()
-end
+end --_init()
 
-function _update()
-	move_player()
-end
+ function _update()
+ 	update_player()
+ 	update_items()
+ end --_update()
 
 function _draw()
 	cls()
+	camera(0,0)
 	map(0,0)
-	draw_player()
-end
+ 	draw_items()
+ 	--camera(p.x,p.y)
+ 	draw_player()
+ 	--debug()
+ 	if (log) debug()
+ end --_draw()
+ 
+ function lerp(a,b,t)
+	return a + t * (b-a)
+end --lerp()
+
+function debug()
+	local x,y,w,h,gap = 0,0,0,0,3
+	h = #log*(5+gap)+gap --height
+	for i=1,#log do --line width
+		local w2 = #(log[i])*4 + gap*2
+		if (w2>w) w=w2
+	end --line length
+	x,y = 127-w,127-h
+	rectfill(x,y,x+w,y+h,1)
+	rect(x,y,x+w,y+h,8)
+	for i = 1,#log do
+		print(log[i],x+gap,y+gap+(i-1)*(5+gap),6)
+	end --for
+end --debug()
 -->8
 --player
 function make_player()
-	p={}
-	p.x=0
-	p.y=0
-	p.speed=1
-	p.anim={}
-	p.anim.stand={sp={3},x=0,y=1,w=5,h=7}
-	p.anim.walk={sp={3},x=0,y=1,w=5,h=7}
-	p.anim.crouch={sp={2},x=0,y=2,w=4,h=6}
-	p.anim.jump={sp={1},x=0,y=1,w=5,h=7}
-	p.anim.climb={sp={4,5},x=1,y=1,w=6,h=7}
+	p={     --attributes
+		x=8,y=40,--pos
+		speed=1,--walk speed
+		jforce=-3,--jump force
+		jumps=0,maxjumps=2,--jumps
+		
+		--temp stuff
+		tx=0,ty=8,--temp x,y
+		sp=3,w=4,h=8,--start sprite
+		cell=0,--map cell sprite
+		dy=0,--for gravity
+ 		gnd=false,--on ground?
+ 		xscale=1,flip=false,--flip
+ 		frame=0,--current anim frame
+ 		keys=0,
+
+ 		anim={
+ 			stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
+			walk={sp={3,7,3,8},x=0,y=1,w=4,h=8,name="walk"},
+			crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
+			jump={sp={1},x=0,y=1,w=4,h=8,name="jump"},
+			climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
+			}, --end anim
+		inventory={},
+		weapons={},
+	} --end p
 	p.state=p.anim.stand
+	p.tx,p.ty=p.x,p.y
 end
 
+function update_player()
+	p.cell=mget(p.tx/8,p.ty/8)
+	
+ 	move() --includes climb
+ 	jump()
+ 	fall()
+
+ 	p.cell=mget(p.x/8,p.y/8)
+
+ 	--update animation
+ 	p.frame+=1
+	p.sp=p.state.sp[p.frame%#p.state.sp]
+	--log_player()
+end
+
+
+--[[
+function log_player()
+	log={}
+	add(log,"x,y: "..p.x..","..p.y)
+	add(log,"w,h: "..p.state.w..","..p.state.h)
+	add(log,"sprite: "..p.state.sp[1])
+	add(log,"state: "..p.state.name)
+	add(log,"xscale: "..p.xscale)
+	add(log,"map cell: "..p.cell)
+end
+--]]
+
+
+function move()
+	--walking
+	if btn(0) then
+		p.flip=true
+		p.xscale = -1
+		p.tx-=p.speed
+		--p.state=p.anim.walk
+	end
+	if btn(1) then
+		p.flip=false
+		p.xscale = 1
+		p.tx+=p.speed
+		--p.state=p.anim.walk
+	end
+	
+	--climbing
+	if onladder() then
+		--falling=false
+		if btn(2) then
+			p.ty -= p.speed
+		end
+		if btn(3) then
+			p.ty += p.speed
+		end
+	end
+	
+	if not trymove() then
+		p.tx,p.ty=p.x,p.y
+	end
+	
+	--setting animation states
+	if (p.y != p.ty) then
+		p.y = p.ty
+		p.state=p.anim.climb
+	elseif (p.x != p.tx) then	
+		p.x = p.tx
+		p.state = p.anim.walk
+	elseif btn(3) and not onladder() then
+		p.state=p.anim.crouch
+	else
+		p.state = p.anim.stand
+	end
+end --move()
+
+
+function jump()
+	if (onladder()) return
+	if (btnp(❎) and
+					p.jumps<p.maxjumps) then
+		--local up=mget(p.x/8,p.y/8)
+		--if not fget(up,0) then
+			--p.falling=true
+			p.dy=p.jforce
+			--p.y-=4
+			p.jumps += 1
+			--p.y+=p.jforce
+		--end
+	end
+end --jump()
+function onladder()
+	return fget(p.cell,1)
+end --onladder()
+
+
+function fall()
+	if (onladder()) return
+	if not p.gnd then
+		p.dy+=gravity
+		p.ty+=p.dy
+		if hitground() then
+			p.jumps=0
+			p.dy=0
+			p.gnd=true
+			p.y=flr(p.y/8)*8+p.state.y
+		elseif hithead() then
+			p.dy=0
+		else
+			p.y+=p.dy
+		end
+	else -- if not falling
+		if not hitground() then
+			p.gnd=false
+		end
+	end
+end --fall()
+
+function trymove()
+ 	p.w=(p.state.w-p.state.x-1)*p.xscale
+ 	p.h=p.state.h-p.state.y-1
+ 	--[[
+ 	log={}
+ 	add(log,"player: "..p.x..","..p.y)
+ 	add(log,"anim x,y: "..p.state.x..","..p.state.y)
+ 	add(log,"anim w,h: "..p.state.w..","..p.state.h)
+ 	add(log,"xmod: "..p.w..","..p.h)
+
+ 	--]]
+ 	local hit = hithead() or	
+ 		 hitground() or hitbounds()
+ 	return not hit
+
+ end --trymove()
+ 
+ function bonk(x,y)
+ 	add(log,"bonk: "..x..","..y)
+ 	--add(log,"bonk: "..x..","..y)
+ 	return fget(mget(x/8,y/8),0)
+ end --bonk
+
+function hithead()
+	if bonk(p.tx,p.ty) or
+				bonk(p.tx+p.w,p.ty) then
+		return true
+	end
+end --hithead()
+
+function hitbounds()
+	if p.tx<0 or p.tx+p.w<0 or
+				p.tx>127*8 or p.tx+p.w>127*8 or
+				p.ty<0 or p.ty+p.h<0 or
+				p.ty>63*8 or p.ty+p.h>63*8 then
+		return true
+	end
+end --hitbounds()
+function hitground()
+--one point only
+	if (bonk(p.tx,p.ty+p.h)) return true
+	
+	--[[
+	local x1,y1,x2,y2 = box(p,true)
+	--local x1,y1,x2,y2 = pbox(p.tx,p.ty)
+	if (bonk(x1,y2) or 
+					bonk(x2,y2)) then
+		return true
+	end --if
+	--]]
+	
+	--[[
+	--local x1,y1,x2,y2 = pbox(p.tx,p.ty)
+	if bonk(p.tx,p.ty+p.h) or
+				bonk(p.tx+p.w,p.ty+p.h) then
+		return true
+	end
+	--]]
+end --hitground()
+
+
+function pbox(x,y)
+	--return player hit box
+	local x1=x-p.state.w/2
+	local x2=x+p.state.w/2
+	local y1=y+7-p.state.h
+	local y2=y+7
+ 	return x1,y1,x2,y2
+ end --pbox()
+
+ function box(obj,temp) --return box
+ 	local x,y = obj.x,obj.y
+ 	if (temp) x,y=obj.tx,obj.ty
+ 	local x1=x-obj.w/2
+ 	local x2=x+obj.w/2
+ 	local y1=y+7-obj.h
+ 	local y2=y+obj.h
+ 	return x1,y1,x2,y2
+ end --box()
+
+
+function draw_player(outline)
+	p.sp=p.state.sp[1]
+	
+ --local x1,y1,x2,y2 = box(p)
+	local x1,y1,x2,y2 = pbox(p.x,p.y)
+	local xsp=x1-p.state.x
+	if (p.flip) xsp=x1-8+p.state.w+p.state.x
+	spr(p.sp,xsp,y1,1,1,p.flip)
+	
+-- bounding box
+	if outline then
+		rect(x1,y1,x2,y2,6)
+		rectfill(p.x,p.y,p.x,p.y,9)
+	end
+end --draw_player()
+	
+--[[
+function climb()
+	local y=p.y
+	if fget(mget(p.x/8,p.y/8),1) then
+		if btn(2) then
+			p.y -= p.speed
+			p.state=p.anim.climb
+		end
+		if btn(3) then
+			p.y += p.speed
+			p.state=p.anim.climb
+		end
+	end
+end
+--]]
+
+
+--[[
+function bonk4()
+	if bonk(p.tx,p.ty) or
+				--bonk(p.tx,p.ty+p.h) or
+				bonk(p.tx+p.w,p.ty) or
+				--bonk(p.tx+p.w,p.ty+p.h) then
+				hitground() then
+		return true
+	end
+end --bonk4()
+--]]
+
+--[[
 function move_player()
 	if (p.state==p.anim.stand
 		or p.state==p.anim.walk) then
@@ -51,18 +339,76 @@ function walk()
 		p.state = p.anim.stand
 	end
 end
+--]]
 
-
-
+--[[
 function draw_player()
 	spr(p.state.spr[0], 
 	p.x+p.state.x, 
 	p.y+p.state.y)
 end
+--]]
 -->8
 --enemies
 -->8
 --map
+
+function make_items()
+ 	keys={}
+ 	temp_item=nil
+ 	--keys={}
+
+ 	for y=0,32 do
+ 		for x=0,128 do
+ 			local cell=mget(x,y)
+ 			--[[
+ 			if cell==84 then --key
+ 				add(keys,{x=x,y=y})
+ 				add(keys,{x=x*8,y=y*8,
+ 					w=8,h=8,name="key"})
+ 				mset(x,y,0)
+ 			end -- key
+ 			--]]
+ 		end -- for x
+ 	end --for y
+ end --make_items
+ 
+ 
+ function update_items()
+ 	--[
+ 	log=nil
+ 	if p.cell==84 then
+
+ 	--for k in all (keys) do
+ 		--if collide(p,k) then
+ 			log={"key","pick up (❎)"}
+ 			if btnp(❎) then
+ 				log={"key acquired"}
+ 				p.keys += 1
+ 				mset(p.x/8,p.y/8, 0)
+ 			end
+ 		--	temp_item=k
+ 		--end
+ 	end --keys
+ 	--]]
+
+ 	--[[
+ 	if temp_item and btnp(❎) then
+ 		log={temp_item.name.." acquired"}
+ 		del(keys,temp_item)
+ 		temp_item=nil
+ 	end
+ 	--]]
+ end
+
+ function draw_items()
+ 	--[[
+ 	for k in all (keys) do
+ 		spr(84,k.x*8,k.y*8)
+ 		spr(84,k.x,k.y)
+ 	end
+ 	--]]
+ end
 -->8
 --biomes
 --[[ comments
@@ -78,6 +424,84 @@ aliens home,music jungle
 
 
 ]]
+-->8
+--collision
+
+
+ function box(obj,temp) --return box
+ 	local x,y = obj.x,obj.y
+ 	if (temp) x,y=obj.tx,obj.ty
+ 	local x1=x-obj.w/2
+ 	local x2=x+obj.w/2
+ 	local y1=y+7-obj.h
+ 	local y2=y+obj.h
+ 	return x1,y1,x2,y2
+ end --box()
+
+
+ function collide(p,e)
+ 	local l1,t1,r1,b1 = box(p)
+ 	local l2,t2,r2,b2 = box(e)
+ 	if r1>l2 and r2>l1 and
+ 				b1>t2 and b2>t1 then
+ 	--[[
+ 	local x1,y1,w1,h1 = 
+ 		p.x+p.state.x,
+ 		p.y+p.state.y,
+ 		p.state.w,p.state.h
+ 	local x2,y2,w2,h2 =
+ 		e.x,e.y,e.w,e.h
+ 	
+ 	if (x1+w1>x2 and x2+w2>x1 and
+ 					y1+h1>y2 and y2+w2>y1) then
+ 	--]]
+ 	 return true
+ 	end
+ end
+
+ --[[
+ function hitwall()
+ 	--facing left
+ 	local mod=(p.state.w-p.state.x)*p.xscale
+	local x=p.tx+mod*p.xscale
+	local y=p.ty-p.state.y
+	local top=mget(x+mod,y)
+	local btm=mget(x+mod,y+p.state.h)
+	if fget(top,0) or 
+				fget(btm,0) then
+		return true
+	else
+		return false
+ 	end
+ end
+
+
+ function collide_all()
+ 	for e in all (enemies) do
+ 		if (collide(p,e)) return true
+	end
+	for w in all (walls) do
+		if (collide(p,w)) return true
+ 	end
+ 	return false
+ end
+
+ function collide(p,e)
+ 	local x1,y1,w1,h1 = 
+ 		p.x+p.state.x,
+ 		p.y+p.state.y,
+ 		p.state.w,p.state.h
+ 	local x2,y2,w2,h2 =
+ 		e.x,e.y,e.w,e.h
+
+ 	if (x1+w1>x2 and x2+w2>x1 and
+ 					y1+h1>y2 and y2+w2>y1) then
+ 	 return true
+ 	else
+ 		return false
+ 	end
+ end
+ --]]
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000ce0000000000000c000000001c00c0000c00c1000000000c0000000c000000000000000000000000000000000000000000000000000000000000000
@@ -199,6 +623,9 @@ d3d3d38585858585858500008500000000546161000054000000000000000000753585000000e100
 00000000000000000000000000000000000000009494949494949400000000008435008585858500000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000008484848585858500000000000000000000000000000000000000000000000000
+__gff__
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010101000000000000000102000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000585851535800530000184200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
