@@ -14,6 +14,7 @@ end --_init()
 
 function _update()
 	update_player()
+	update_items()
 end --_update()
 
 function _draw()
@@ -23,7 +24,7 @@ function _draw()
 	draw_items()
 	--camera(p.x,p.y)
 	draw_player()
-	--debug()
+	if (log) debug()
 end --_draw()
 
 function lerp(a,b,t)
@@ -61,6 +62,7 @@ function make_player()
 		gnd=false,--on ground?
 		xscale=1,flip=false,--flip
 		frame=0,--current anim frame
+		keys=0,
 		
 		anim={
 			stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
@@ -82,7 +84,7 @@ function update_player()
 	move() --includes climb
 	jump()
 	fall()
-	
+	p.cell=mget(p.x/8,p.y/8)
 	
 	--update animation
 	p.frame+=1
@@ -192,12 +194,13 @@ end --fall()
 function trymove()
 	p.w=(p.state.w-p.state.x-1)*p.xscale
 	p.h=p.state.h-p.state.y-1
+	--[[
 	log={}
 	add(log,"player: "..p.x..","..p.y)
 	add(log,"anim x,y: "..p.state.x..","..p.state.y)
 	add(log,"anim w,h: "..p.state.w..","..p.state.h)
 	add(log,"xmod: "..p.w..","..p.h)
-
+	--]]
 	local hit = hithead() or	
 		 hitground() or hitbounds()
 	return not hit
@@ -205,7 +208,7 @@ function trymove()
 end --trymove()
 
 function bonk(x,y)
-	add(log,"bonk: "..x..","..y)
+	--add(log,"bonk: "..x..","..y)
 	return fget(mget(x/8,y/8),0)
 end --bonk
 
@@ -258,15 +261,6 @@ function pbox(x,y)
 	return x1,y1,x2,y2
 end --pbox()
 
-function box(obj,temp) --return box
-	local x,y = obj.x,obj.y
-	if (temp) x,y=obj.tx,obj.ty
-	local x1=x-obj.w/2
-	local x2=x+obj.w/2
-	local y1=y+7-obj.h
-	local y2=y+obj.h
-	return x1,y1,x2,y2
-end --box()
 
 
 function draw_player(outline)
@@ -320,23 +314,56 @@ end --bonk4()
 --map
 
 function make_items()
-	keys={}
+	temp_item=nil
+	--keys={}
 	
 	for y=0,32 do
 		for x=0,128 do
 			local cell=mget(x,y)
+			--[[
 			if cell==84 then --key
-				add(keys,{x=x,y=y})
+				add(keys,{x=x*8,y=y*8,
+					w=8,h=8,name="key"})
 				mset(x,y,0)
 			end -- key
+			--]]
 		end -- for x
 	end --for y
 end --make_items
 
-function draw_items()
-	for k in all (keys) do
-		spr(84,k.x*8,k.y*8)
+function update_items()
+	--[
+	log=nil
+	if p.cell==84 then
+	
+	--for k in all (keys) do
+		--if collide(p,k) then
+			log={"key","pick up (❎)"}
+			if btnp(❎) then
+				log={"key acquired"}
+				p.keys += 1
+				mset(p.x/8,p.y/8, 0)
+			end
+		--	temp_item=k
+		--end
+	end --keys
+	--]]
+	
+	--[[
+	if temp_item and btnp(❎) then
+		log={temp_item.name.." acquired"}
+		del(keys,temp_item)
+		temp_item=nil
 	end
+	--]]
+end
+
+function draw_items()
+	--[[
+	for k in all (keys) do
+		spr(84,k.x,k.y)
+	end
+	--]]
 end
 -->8
 --biomes
@@ -356,6 +383,38 @@ aliens home,music jungle
 -->8
 --collision
 
+function box(obj,temp) --return box
+	local x,y = obj.x,obj.y
+	if (temp) x,y=obj.tx,obj.ty
+	local x1=x-obj.w/2
+	local x2=x+obj.w/2
+	local y1=y+7-obj.h
+	local y2=y+obj.h
+	return x1,y1,x2,y2
+end --box()
+
+
+function collide(p,e)
+	local l1,t1,r1,b1 = box(p)
+	local l2,t2,r2,b2 = box(e)
+	if r1>l2 and r2>l1 and
+				b1>t2 and b2>t1 then
+	--[[
+	local x1,y1,w1,h1 = 
+		p.x+p.state.x,
+		p.y+p.state.y,
+		p.state.w,p.state.h
+	local x2,y2,w2,h2 =
+		e.x,e.y,e.w,e.h
+	
+	if (x1+w1>x2 and x2+w2>x1 and
+					y1+h1>y2 and y2+w2>y1) then
+	--]]
+	 return true
+	end
+end
+
+--[[
 function hitwall()
 	--facing left
 	local mod=(p.state.w-p.state.x)*p.xscale
@@ -372,6 +431,7 @@ function hitwall()
 	end
 end
 
+
 function collide_all()
 	for e in all (enemies) do
 		if (collide(p,e)) return true
@@ -381,22 +441,7 @@ function collide_all()
 	end
 	return false
 end
-
-function collide(p,e)
-	local x1,y1,w1,h1 = 
-		p.x+p.state.x,
-		p.y+p.state.y,
-		p.state.w,p.state.h
-	local x2,y2,w2,h2 =
-		e.x,e.y,e.w,e.h
-	
-	if (x1+w1>x2 and x2+w2>x1 and
-					y1+h1>y2 and y2+w2>y1) then
-	 return true
-	else
-		return false
-	end
-end
+--]]
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000ce0000000000000c00000001c00c0000c00c10000000000c0000000c000000000000000000000000000000000000000000000000000000000000000
