@@ -6,32 +6,91 @@ __lua__
 
 function _init()
 	log={}
+	make_ui()
 	make_items()
 	--make_map()
 	gravity=.2
 	make_player()
 end --_init()
 
- function _update()
- 	update_player()
- 	update_items()
- end --_update()
+function _update()
+ update_player()
+ update_items()
+ update_ui()
+end --_update()
 
 function _draw()
 	cls()
-	camera(0,0)
+	--camera(-p.x,-p.y)
 	map(0,0)
- 	draw_items()
- 	--camera(p.x,p.y)
- 	draw_player()
- 	--debug()
- 	if (log) debug()
- end --_draw()
+	camera(0,0)
+ --draw_items()
+ --camera(p.x,p.y)
+ draw_player()
+ --debug()
+ --if (log) debug()
+ draw_ui()
+end --_draw()
  
- function lerp(a,b,t)
+function lerp(a,b,t)
 	return a + t * (b-a)
 end --lerp()
 
+function make_ui()
+	cpanel={"🅾️ jump"}
+end --make_ui()
+
+function update_ui()
+	if ipanel_timer then
+		ipanel_timer -= 1
+		if ipanel_timer <=0 then
+			ipanel=nil
+			ipanel_timer=nil
+		end
+	end
+end --update_ui()
+
+function set_ipanel(msg)
+	ipanel=msg
+ ipanel_timer=30
+end
+
+function draw_ui()
+	--foreach (ui,draw_panel)
+	draw_panel(cpanel,"l","b",1,8)
+	if (ipanel) then
+		draw_panel(ipanel,"c","c",1,8,true)
+	end
+end
+
+function draw_panel(panel,horz,vert,fill,outline,centered)
+	local x,y,w,h,gap = 0,0,0,0,3
+	h = #panel*(5+gap)+gap --height
+	--line width
+	for i=1,#panel do
+		local w2 = #(panel[i])*4 + gap*3
+		if (w2>w) w=w2
+	end --line length
+	--panel width
+	if (horz=="l") x=0
+	if (horz=="r") x=127-w
+	if (horz=="c") x=64-w/2
+	--panel height
+	if (vert=="t") y=0
+	if (vert=="b") y=127-h
+	if (vert=="c") y=64-h/2
+	rectfill(x,y,x+w,y+h,1)
+	rect(x,y,x+w,y+h,8)
+	for i = 1,#panel do
+		local ln=panel[i]
+		local mod=0
+		if (centered) mod=(w-#ln*4)/2-gap
+		
+		print(ln,x+gap+mod,y+gap+(i-1)*(5+gap),6)
+	end --for
+end
+
+--[[
 function debug()
 	local x,y,w,h,gap = 0,0,0,0,3
 	h = #log*(5+gap)+gap --height
@@ -46,6 +105,7 @@ function debug()
 		print(log[i],x+gap,y+gap+(i-1)*(5+gap),6)
 	end --for
 end --debug()
+--]]
 -->8
 --player
 function make_player()
@@ -67,10 +127,10 @@ function make_player()
 
  		anim={
  			stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
-			walk={sp={3,7,3,8},x=0,y=1,w=4,h=8,name="walk"},
-			crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
-			jump={sp={1},x=0,y=1,w=4,h=8,name="jump"},
-			climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
+				walk={sp={3,7,3,8},x=0,y=1,w=4,h=8,name="walk"},
+				crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
+				jump={sp={1},x=0,y=1,w=4,h=8,name="jump"},
+				climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
 			}, --end anim
 		inventory={},
 		weapons={},
@@ -90,7 +150,8 @@ function update_player()
 
  	--update animation
  	p.frame+=1
-	p.sp=p.state.sp[p.frame%#p.state.sp]
+ 	local index=(p.frame%#p.state.sp)+1
+	p.sp=p.state.sp[index]
 	--log_player()
 end
 
@@ -110,28 +171,26 @@ end
 
 function move()
 	--walking
+	local speed=p.speed
+	if (groundis(75)) speed/=2
+		
 	if btn(0) then
 		p.flip=true
 		p.xscale = -1
-		p.tx-=p.speed
+		p.tx-=speed
 		--p.state=p.anim.walk
 	end
 	if btn(1) then
 		p.flip=false
 		p.xscale = 1
-		p.tx+=p.speed
+		p.tx+=speed
 		--p.state=p.anim.walk
 	end
 	
 	--climbing
 	if onladder() then
-		--falling=false
-		if btn(2) then
-			p.ty -= p.speed
-		end
-		if btn(3) then
-			p.ty += p.speed
-		end
+		if (btn(2)) p.ty -= p.speed
+		if (btn(3)) p.ty += p.speed
 	end
 	
 	if not trymove() then
@@ -155,7 +214,7 @@ end --move()
 
 function jump()
 	if (onladder()) return
-	if (btnp(❎) and
+	if (btnp(🅾️) and
 					p.jumps<p.maxjumps) then
 		--local up=mget(p.x/8,p.y/8)
 		--if not fget(up,0) then
@@ -167,8 +226,9 @@ function jump()
 		--end
 	end
 end --jump()
+
 function onladder()
-	return fget(p.cell,1)
+	if (touching(83)) return true
 end --onladder()
 
 
@@ -232,6 +292,7 @@ function hitbounds()
 		return true
 	end
 end --hitbounds()
+
 function hitground()
 --one point only
 	if (bonk(p.tx,p.ty+p.h)) return true
@@ -253,6 +314,12 @@ function hitground()
 	end
 	--]]
 end --hitground()
+
+function groundis(sp)
+ if mget(p.tx/8,p.ty+10/8) == sp then
+ 	return true
+ end
+end
 
 
 function pbox(x,y)
@@ -276,7 +343,7 @@ function pbox(x,y)
 
 
 function draw_player(outline)
-	p.sp=p.state.sp[1]
+	--p.sp=p.state.sp[]
 	
  --local x1,y1,x2,y2 = box(p)
 	local x1,y1,x2,y2 = pbox(p.x,p.y)
@@ -371,44 +438,57 @@ function make_items()
  			--]]
  		end -- for x
  	end --for y
- end --make_items
+end --make_items
  
  
- function update_items()
- 	--[
- 	log=nil
- 	if p.cell==84 then
-
- 	--for k in all (keys) do
- 		--if collide(p,k) then
- 			log={"key","pick up (❎)"}
+function update_items()
+ 	--ipanel=nil
+ 	
+ 	local x,y,t=near(84)
+ 	if t then --key
+ 			set_ipanel({"key","pick up (❎)"})
  			if btnp(❎) then
- 				log={"key acquired"}
+ 				set_ipanel({"key acquired"})
  				p.keys += 1
- 				mset(p.x/8,p.y/8, 0)
+ 				mset(x,y, 0)
  			end
- 		--	temp_item=k
- 		--end
  	end --keys
- 	--]]
+ 	
+ 	local x,y,t=near(81)
+ 	if t then --door
+ 		if (p.keys>0) then
+ 			set_ipanel({"key door","unlock (❎)"})
+ 			if btnp(❎) then
+ 				set_ipanel({"door unlocked"})
+ 				p.keys -= 1
+ 				mset(x,y,82)
+ 			end
+ 		else
+ 			set_ipanel({"door locked","need a key"})
+ 		end
+ 	end -- locked door
+ 		
+ 	local x,y,t=near(79)
+ 	if t then --key
+ 			set_ipanel({"wooden door","open (❎)"})
+ 			if btnp(❎) then
+ 				set_ipanel({"door opened"})
+ 				mset(x,y, 80)
+ 			end
+ 	end --wooden door
+ 		
+end --update_items()
 
- 	--[[
- 	if temp_item and btnp(❎) then
- 		log={temp_item.name.." acquired"}
- 		del(keys,temp_item)
- 		temp_item=nil
- 	end
- 	--]]
- end
-
- function draw_items()
+--[[
+function draw_items()
  	--[[
  	for k in all (keys) do
  		spr(84,k.x*8,k.y*8)
  		spr(84,k.x,k.y)
  	end
  	--]]
- end
+ end --draw_items
+--]]
 -->8
 --biomes
 --[[ comments
@@ -458,6 +538,24 @@ aliens home,music jungle
  	 return true
  	end
  end
+ 
+ function touching(sp)
+		local x1,y1,x2,y2 = box(p,true)
+		if (mget(x1/8,y1/8) == sp or
+				 mget(x2/8,y1/8) == sp or
+				 mget(x1/8,y2/8) == sp or
+				 mget(x2/8,y2/8) == sp) then
+		--return fget(p.cell,1)
+		return true
+	end
+end
+
+function near(sp)
+	local x,y = flr(p.x/8),flr(p.y/8)
+	if (mget(x,y) == sp) return x,y,true
+	if (mget(x-1,y) == sp) return x-1,y,true
+	if (mget(x+1,y) == sp) return x+1,y,true
+end
 
  --[[
  function hitwall()
@@ -624,7 +722,7 @@ d3d3d38585858585858500008500000000546161000054000000000000000000753585000000e100
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000008484848585858500000000000000000000000000000000000000000000000000
 __gff__
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010101000000000000000102000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010101000000000000000101000001000100020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
