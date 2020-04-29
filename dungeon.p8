@@ -126,22 +126,24 @@ function make_player()
 	p={     --attributes
 		x=8,y=48,--pos
 		speed=1,--walk speed
-		jforce=-2,--jump force
+		jforce=-2.25,--jump force
 		jumps=0,maxjumps=2,--jumps
+		framerate=12,
 		
 		--temp stuff
 		tx=0,ty=8,--temp x,y
 		sp=3,w=4,h=8,--start sprite
 		cell=0,--map cell sprite
 		dy=0,--for gravity
- 		gnd=false,--on ground?
- 		xscale=1,flip=false,--flip
- 		frame=0,--current anim frame
- 		keys=0,
+ 	gnd=false,--on ground?
+ 	xscale=1,flip=false,--flip
+ 	count=0,--current game frame
+ 	frame=0,--current anim frame
+ 	keys=0,
 
  		anim={
  			stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
-				walk={sp={3,7,3,8},x=0,y=1,w=4,h=8,name="walk"},
+				walk={sp={7,8},x=0,y=1,w=4,h=8,name="walk"},
 				crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
 				jump={sp={1},x=0,y=0,w=4,h=8,name="jump"},
 				climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
@@ -162,9 +164,12 @@ function update_player()
  p.cell=mget(p.x/8,p.y/8)
 
  --update animation
- p.frame+=1
- local fr=(p.frame%#p.state.sp)+1
-	p.sp=p.state.sp[fr]
+ p.count+=1
+ if p.count%(30/p.framerate) == 0 then
+ 	p.frame+=1
+ 	if (p.frame>#p.state.sp) p.frame=1
+		p.sp=p.state.sp[p.frame]
+	end
 	--log_player()
 end
 
@@ -215,8 +220,8 @@ end --move()
 
 function jump()
 	if (onladder()) return
-	if ((btnd(🅾️) or btnd(⬆️)) and
-					p.jumps<p.maxjumps) then
+	if btnd(⬆️) and
+				p.jumps<p.maxjumps then
 		p.dy=p.jforce
 		p.jumps += 1
 	end
