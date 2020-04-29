@@ -21,14 +21,15 @@ end --_update()
 
 function _draw()
 	cls()
-	--camera(-p.x,-p.y)
+	camera(p.x-64,p.y-64)
 	map(0,0)
-	camera(0,0)
+	--camera(0,0)
  --draw_items()
- --camera(p.x,p.y)
+ --camera(64,64)
  draw_player()
  --debug()
  --if (log) debug()
+ camera(0,0)
  draw_ui()
 end --_draw()
  
@@ -36,8 +37,9 @@ function lerp(a,b,t)
 	return a + t * (b-a)
 end --lerp()
 
+-----ui-----
 function make_ui()
-	cpanel={"🅾️ jump"}
+	set_ipanel({"< > move","🅾️ jump"},300)
 end --make_ui()
 
 function update_ui()
@@ -50,16 +52,16 @@ function update_ui()
 	end
 end --update_ui()
 
-function set_ipanel(msg)
+function set_ipanel(msg,t)
 	ipanel=msg
- ipanel_timer=30
+ if (t==nil) ipanel_timer=30
 end
 
 function draw_ui()
 	--foreach (ui,draw_panel)
-	draw_panel(cpanel,"l","b",1,8)
+	--draw_panel(cpanel,"l","b",1,8)
 	if (ipanel) then
-		draw_panel(ipanel,"c","c",1,8,true)
+		draw_panel(ipanel,"c","m",1,8,true)
 	end
 end
 
@@ -79,6 +81,7 @@ function draw_panel(panel,horz,vert,fill,outline,centered)
 	if (vert=="t") y=0
 	if (vert=="b") y=127-h
 	if (vert=="c") y=64-h/2
+	if (vert=="m") y=84
 	rectfill(x,y,x+w,y+h,1)
 	rect(x,y,x+w,y+h,8)
 	for i = 1,#panel do
@@ -110,7 +113,7 @@ end --debug()
 --player
 function make_player()
 	p={     --attributes
-		x=8,y=40,--pos
+		x=8,y=48,--pos
 		speed=1,--walk speed
 		jforce=-3,--jump force
 		jumps=0,maxjumps=2,--jumps
@@ -421,13 +424,13 @@ end
 --map
 
 function make_items()
- 	keys={}
- 	temp_item=nil
+ 	--keys={}
+ 	--temp_item=nil
  	--keys={}
 
  	for y=0,32 do
  		for x=0,128 do
- 			local cell=mget(x,y)
+ 			--local cell=mget(x,y)
  			--[[
  			if cell==84 then --key
  				add(keys,{x=x,y=y})
