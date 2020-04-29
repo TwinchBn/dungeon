@@ -14,6 +14,7 @@ function _init()
 end --_init()
 
 function _update()
+	poke(0x5f00+92,255)
  update_player()
  update_items()
  update_ui()
@@ -125,7 +126,7 @@ function make_player()
 	p={     --attributes
 		x=8,y=48,--pos
 		speed=1,--walk speed
-		jforce=-3,--jump force
+		jforce=-2,--jump force
 		jumps=0,maxjumps=2,--jumps
 		
 		--temp stuff
@@ -142,7 +143,7 @@ function make_player()
  			stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
 				walk={sp={3,7,3,8},x=0,y=1,w=4,h=8,name="walk"},
 				crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
-				jump={sp={1},x=0,y=1,w=4,h=8,name="jump"},
+				jump={sp={1},x=0,y=0,w=4,h=8,name="jump"},
 				climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
 			}, --end anim
 		inventory={},
@@ -150,9 +151,11 @@ function make_player()
 	} --end p
 	p.state=p.anim.stand
 	p.tx,p.ty=p.x,p.y
+	p.⬆️ = false --jump button
 end
 
 function update_player()
+	btnu(⬆️)
  move() --walk,climb,crouch
  jump()
  fall()
@@ -212,7 +215,7 @@ end --move()
 
 function jump()
 	if (onladder()) return
-	if ((btnp(🅾️) or btnp(⬆️)) and
+	if ((btnd(🅾️) or btnd(⬆️)) and
 					p.jumps<p.maxjumps) then
 		p.dy=p.jforce
 		p.jumps += 1
@@ -512,23 +515,22 @@ aliens home,music jungle
 -->8
 --collision
 
+function box(obj,temp) --return box
+ local x,y = obj.x,obj.y
+ if (temp) x,y=obj.tx,obj.ty
+ local x1=x-obj.w/2
+ local x2=x+obj.w/2
+ local y1=y+7-obj.h
+ local y2=y+obj.h
+ return x1,y1,x2,y2
+end --box()
 
- function box(obj,temp) --return box
- 	local x,y = obj.x,obj.y
- 	if (temp) x,y=obj.tx,obj.ty
- 	local x1=x-obj.w/2
- 	local x2=x+obj.w/2
- 	local y1=y+7-obj.h
- 	local y2=y+obj.h
- 	return x1,y1,x2,y2
- end --box()
 
-
- function collide(p,e)
- 	local l1,t1,r1,b1 = box(p)
- 	local l2,t2,r2,b2 = box(e)
- 	if r1>l2 and r2>l1 and
- 				b1>t2 and b2>t1 then
+function collide(p,e)
+ local l1,t1,r1,b1 = box(p)
+ local l2,t2,r2,b2 = box(e)
+ if r1>l2 and r2>l1 and
+ 			b1>t2 and b2>t1 then
  	--[[
  	local x1,y1,w1,h1 = 
  		p.x+p.state.x,
@@ -540,9 +542,9 @@ aliens home,music jungle
  	if (x1+w1>x2 and x2+w2>x1 and
  					y1+h1>y2 and y2+w2>y1) then
  	--]]
- 	 return true
- 	end
+ 	return true
  end
+end -- collide()
  
  function touching(sp)
 		local x1,y1,x2,y2 = box(p,true)
@@ -553,14 +555,34 @@ aliens home,music jungle
 		--return fget(p.cell,1)
 		return true
 	end
-end
+end --touching()
 
 function near(sp)
 	local x,y = flr(p.x/8),flr(p.y/8)
 	if (mget(x,y) == sp) return x,y,true
 	if (mget(x-1,y) == sp) return x-1,y,true
 	if (mget(x+1,y) == sp) return x+1,y,true
-end
+end --near()
+
+function btnu(b)
+	if b==⬆️ or b==🅾️ then
+		if not btn(b) and p.⬆️ then
+			p.⬆️ = false
+			return true
+		end
+	end
+end --btnu
+
+function btnd(b)
+		if b==⬆️ or b==🅾️ then
+		if btn(b) and not p.⬆️ then
+			p.⬆️ = true
+			return true
+		end
+	end
+end --btnd
+
+
 
  --[[
  function hitwall()
