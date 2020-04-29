@@ -5,6 +5,7 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
+	size(64)
 	log={}
 	make_ui()
 	make_items()
@@ -13,8 +14,19 @@ function _init()
 	make_player()
 end --_init()
 
+function size(w)
+	gamew=w
+	gameh=w
+	camw=w/2
+	camh=w/3
+	if (w==64) then
+		poke(0x5f2c,3)
+		camh=w/2
+	end
+end
+
 function _update()
-	poke(0x5f00+92,255)
+	--poke(0x5f00+92,255)
  update_player()
  update_items()
  update_ui()
@@ -22,7 +34,7 @@ end --_update()
 
 function _draw()
 	cls()
-	camera(p.x-64,p.y-64)
+	camera(p.x-camw,p.y-camh)
 	map(0,0)
  draw_player()
  camera(0,0)
@@ -57,7 +69,7 @@ function draw_ui()
 	--foreach (ui,draw_panel)
 	--draw_panel(cpanel,"l","b",1,8)
 	if (ipanel) then
-		draw_panel(ipanel,"c","m",1,8,true)
+		draw_panel(ipanel,"c","b",1,8,true)
 	end
  --if (log) then
  	--draw_panel(log,"r","b",1,8)
@@ -65,7 +77,7 @@ function draw_ui()
 end
 
 function draw_panel(panel,horz,vert,fill,outline,centered)
-	local x,y,w,h,gap = 0,0,0,0,4
+	local x,y,w,h,gap = 0,0,0,0,3
 	local special="⬅️➡️⬆️⬇️❎🅾️"
 	local lines={}
 	--panel height
@@ -86,13 +98,13 @@ function draw_panel(panel,horz,vert,fill,outline,centered)
 	end --line width
 	--panel width
 	if (horz=="l") x=0
-	if (horz=="r") x=127-w
-	if (horz=="c") x=64-w/2
+	if (horz=="r") x=gamew-w
+	if (horz=="c") x=gamew/2-w/2
 	--panel height
 	if (vert=="t") y=0
-	if (vert=="b") y=127-h
-	if (vert=="c") y=64-h/2
-	if (vert=="m") y=84
+	if (vert=="b") y=gameh-h
+	if (vert=="c") y=gameh/2-h/2
+	if (vert=="m") y=gameh/2+h/3
 	rectfill(x,y,x+w-2,y+h-1,1)
 	rect(x,y,x+w-2,y+h-1,8)
 	for i = 1,#panel do
