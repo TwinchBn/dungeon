@@ -35,7 +35,7 @@ end --_update()
 function _draw()
 	cls()
 	camera(p.x-camw,p.y-camh)
-	map(0,0)
+	map(0,0,0,0,128,64)
  draw_player()
  camera(0,0)
  draw_ui()
@@ -340,18 +340,18 @@ function pbox(x,y)
 	local x2=x+p.state.w/2
 	local y1=y+7-p.state.h
 	local y2=y+7
- 	return x1,y1,x2,y2
- end --pbox()
+ return x1,y1,x2,y2
+end --pbox()
 
- function box(obj,temp) --return box
- 	local x,y = obj.x,obj.y
- 	if (temp) x,y=obj.tx,obj.ty
- 	local x1=x-obj.w/2
- 	local x2=x+obj.w/2
- 	local y1=y+7-obj.h
- 	local y2=y+obj.h
- 	return x1,y1,x2,y2
- end --box()
+function box(obj,temp) --return box
+ local x,y = obj.x,obj.y
+ if (temp) x,y=obj.tx,obj.ty
+ local x1=x-obj.w/2
+ local x2=x+obj.w/2
+ local y1=y+7-obj.h
+ local y2=y+obj.h
+ return x1,y1,x2,y2
+end --box()
 
 
 function draw_player(outline)
