@@ -23,12 +23,7 @@ function _draw()
 	cls()
 	camera(p.x-64,p.y-64)
 	map(0,0)
-	--camera(0,0)
- --draw_items()
- --camera(64,64)
  draw_player()
- --debug()
- --if (log) debug()
  camera(0,0)
  draw_ui()
 end --_draw()
@@ -39,7 +34,7 @@ end --lerp()
 
 -----ui-----
 function make_ui()
-	set_ipanel({"< > move","🅾️ jump"},300)
+	set_ipanel({"⬅️➡️ move","⬆️ jump"},300)
 end --make_ui()
 
 function update_ui()
@@ -63,16 +58,31 @@ function draw_ui()
 	if (ipanel) then
 		draw_panel(ipanel,"c","m",1,8,true)
 	end
+ --if (log) then
+ 	--draw_panel(log,"r","b",1,8)
+ --end
 end
 
 function draw_panel(panel,horz,vert,fill,outline,centered)
-	local x,y,w,h,gap = 0,0,0,0,3
-	h = #panel*(5+gap)+gap --height
+	local x,y,w,h,gap = 0,0,0,0,4
+	local special="⬅️➡️⬆️⬇️❎🅾️"
+	local lines={}
+	--panel height
+	h = #panel*(5+gap)+gap
 	--line width
 	for i=1,#panel do
-		local w2 = #(panel[i])*4 + gap*3
+		local ln = panel[i]
+		local w2 = #ln*4 + gap*2
+		for j=1,#ln do
+			for k=1,#special do
+				if sub(ln,j,j)==sub(special,k,k) then
+				 w2+=4
+				end
+			end
+		end
+		add(lines,w2)
 		if (w2>w) w=w2
-	end --line length
+	end --line width
 	--panel width
 	if (horz=="l") x=0
 	if (horz=="r") x=127-w
@@ -82,12 +92,12 @@ function draw_panel(panel,horz,vert,fill,outline,centered)
 	if (vert=="b") y=127-h
 	if (vert=="c") y=64-h/2
 	if (vert=="m") y=84
-	rectfill(x,y,x+w,y+h,1)
-	rect(x,y,x+w,y+h,8)
+	rectfill(x,y,x+w-2,y+h-1,1)
+	rect(x,y,x+w-2,y+h-1,8)
 	for i = 1,#panel do
 		local ln=panel[i]
 		local mod=0
-		if (centered) mod=(w-#ln*4)/2-gap
+		if (centered) mod=(w-lines[i])/2
 		
 		print(ln,x+gap+mod,y+gap+(i-1)*(5+gap),6)
 	end --for
@@ -143,33 +153,19 @@ function make_player()
 end
 
 function update_player()
-	p.cell=mget(p.tx/8,p.ty/8)
-	
- 	move() --includes climb
- 	jump()
- 	fall()
+ move() --walk,climb,crouch
+ jump()
+ fall()
+ p.cell=mget(p.x/8,p.y/8)
 
- 	p.cell=mget(p.x/8,p.y/8)
-
- 	--update animation
- 	p.frame+=1
- 	local index=(p.frame%#p.state.sp)+1
-	p.sp=p.state.sp[index]
+ --update animation
+ p.frame+=1
+ local fr=(p.frame%#p.state.sp)+1
+	p.sp=p.state.sp[fr]
 	--log_player()
 end
 
 
---[[
-function log_player()
-	log={}
-	add(log,"x,y: "..p.x..","..p.y)
-	add(log,"w,h: "..p.state.w..","..p.state.h)
-	add(log,"sprite: "..p.state.sp[1])
-	add(log,"state: "..p.state.name)
-	add(log,"xscale: "..p.xscale)
-	add(log,"map cell: "..p.cell)
-end
---]]
 
 
 function move()
@@ -214,19 +210,12 @@ function move()
 	end
 end --move()
 
-
 function jump()
 	if (onladder()) return
-	if (btnp(🅾️) and
+	if ((btnp(🅾️) or btnp(⬆️)) and
 					p.jumps<p.maxjumps) then
-		--local up=mget(p.x/8,p.y/8)
-		--if not fget(up,0) then
-			--p.falling=true
-			p.dy=p.jforce
-			--p.y-=4
-			p.jumps += 1
-			--p.y+=p.jforce
-		--end
+		p.dy=p.jforce
+		p.jumps += 1
 	end
 end --jump()
 
@@ -281,8 +270,8 @@ function trymove()
  end --bonk
 
 function hithead()
-	if bonk(p.tx,p.ty) or
-				bonk(p.tx+p.w,p.ty) then
+	if bonk(p.tx,p.ty+p.state.y) or
+				bonk(p.tx+p.w,p.ty+p.state.y) then
 		return true
 	end
 end --hithead()
@@ -418,6 +407,19 @@ function draw_player()
 	p.y+p.state.y)
 end
 --]]
+
+
+--[[
+function log_player()
+	log={}
+	add(log,"x,y: "..p.x..","..p.y)
+	add(log,"w,h: "..p.state.w..","..p.state.h)
+	add(log,"sprite: "..p.state.sp[1])
+	add(log,"state: "..p.state.name)
+	add(log,"xscale: "..p.xscale)
+	add(log,"map cell: "..p.cell)
+end
+--]]
 -->8
 --enemies
 -->8
@@ -449,9 +451,9 @@ function update_items()
  	
  	local x,y,t=near(84)
  	if t then --key
- 			set_ipanel({"key","pick up (❎)"})
+ 			set_ipanel({"iron key","❎ take"})
  			if btnp(❎) then
- 				set_ipanel({"key acquired"})
+ 				set_ipanel({"iron key", "acquired"})
  				p.keys += 1
  				mset(x,y, 0)
  			end
@@ -460,20 +462,20 @@ function update_items()
  	local x,y,t=near(81)
  	if t then --door
  		if (p.keys>0) then
- 			set_ipanel({"key door","unlock (❎)"})
+ 			set_ipanel({"iron door","❎ unlock"})
  			if btnp(❎) then
- 				set_ipanel({"door unlocked"})
+ 				set_ipanel({"iron door", "unlocked"})
  				p.keys -= 1
  				mset(x,y,82)
  			end
  		else
- 			set_ipanel({"door locked","need a key"})
+ 			set_ipanel({"iron door","locked"})
  		end
  	end -- locked door
  		
  	local x,y,t=near(79)
  	if t then --key
- 			set_ipanel({"wooden door","open (❎)"})
+ 			set_ipanel({"wooden door","❎ open"})
  			if btnp(❎) then
  				set_ipanel({"door opened"})
  				mset(x,y, 80)
