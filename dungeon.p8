@@ -5,13 +5,13 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
-	size(64)
 	log={}
 	make_ui()
 	make_items()
 	--make_map()
 	gravity=.2
 	make_player()
+	size(64)
 end --_init()
 
 function size(w)
@@ -23,6 +23,10 @@ function size(w)
 		poke(0x5f2c,3)
 		camh=w/2
 	end
+	lerpx=p.x
+	lerpy=p.y
+	camx_timer=30
+	camy_timer=60
 end
 
 function _update()
@@ -30,17 +34,45 @@ function _update()
  update_player()
  update_items()
  update_ui()
+ update_cam()
 end --_update()
 
 function _draw()
 	cls()
-	camera(p.x-camw,p.y-camh)
+	camera(lerpx-camw,lerpy-camh)
 	--map(0,0,0,0,128,64)
  map(0,0,0,0,128,64)
  draw_player()
  camera(0,0)
  draw_ui()
 end --_draw()
+
+function update_cam()
+	--update cam x
+	if lerpx==p.x then
+		camx_timer=15
+	else
+		camx_timer -= 1
+		if camx_timer<0 then
+			lerpx=lerp(lerpx,p.x,.2)
+			if (abs(lerpx-p.x)<1) lerpx=p.x
+		end
+	end
+		--update cam y
+	if lerpy==p.y then
+		camy_timer=15
+	else
+		camy_timer -= 1
+		if camy_timer<0 then
+			lerpy=lerp(lerpy,p.y,.2)
+			if (abs(lerpy-p.y)<1) lerpy=p.y
+		end
+	end
+	
+ if hitground() or onladder() then
+ 	--lerpy=lerp(lerpy,p.y,0.15)
+ end
+end --update_cam()
  
 function lerp(a,b,t)
 	return a + t * (b-a)
@@ -48,7 +80,7 @@ end --lerp()
 
 -----ui-----
 function make_ui()
-	set_ipanel({"⬅️➡️ move","⬆️ jump"},300)
+	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
 end --make_ui()
 
 function update_ui()
@@ -447,10 +479,7 @@ end
 --map
 
 function make_items()
- 	--keys={}
  	--temp_item=nil
- 	--keys={}
-
  	for y=0,32 do
  		for x=0,128 do
  			--local cell=mget(x,y)
@@ -468,13 +497,12 @@ end --make_items
  
  
 function update_items()
- 	--ipanel=nil
- 	
  	local x,y,t=near(84)
  	if t then --key
- 			set_ipanel({"iron key","❎ take"})
- 			if btnp(❎) then
- 				set_ipanel({"iron key", "acquired"})
+ 			--set_ipanel({"iron key","❎ take"})
+ 			set_ipanel({"🅾️ take key"})
+ 			if btnp(🅾️) then
+ 				set_ipanel({"key taken"})
  				p.keys += 1
  				mset(x,y, 0)
  			end
@@ -483,21 +511,21 @@ function update_items()
  	local x,y,t=near(81)
  	if t then --door
  		if (p.keys>0) then
- 			set_ipanel({"iron door","❎ unlock"})
- 			if btnp(❎) then
- 				set_ipanel({"iron door", "unlocked"})
+ 			set_ipanel({"🅾️ unlock door"})
+ 			if btnp(🅾️) then
+ 				set_ipanel({"door unlocked"})
  				p.keys -= 1
  				mset(x,y,82)
  			end
  		else
- 			set_ipanel({"iron door","locked"})
+ 			set_ipanel({"locked door"})
  		end
  	end -- locked door
  		
  	local x,y,t=near(79)
  	if t then --key
- 			set_ipanel({"wooden door","❎ open"})
- 			if btnp(❎) then
+ 			set_ipanel({"🅾️ open door"})
+ 			if btnp(🅾️) then
  				set_ipanel({"door opened"})
  				mset(x,y, 80)
  			end
@@ -576,10 +604,18 @@ end -- collide()
 end --touching()
 
 function near(sp)
-	local x,y = flr(p.x/8),flr(p.y/8)
-	if (mget(x,y) == sp) return x,y,true
-	if (mget(x-1,y) == sp) return x-1,y,true
-	if (mget(x+1,y) == sp) return x+1,y,true
+	--local x,y = flr(p.x/8),flr(p.y/8)
+	local ym = flr(p.y/8)
+	local mod={-4,0,4}
+	for i=1,#mod do
+		local xm=flr((p.x+mod[i])/8)
+		if mget(xm,ym) == sp then
+			return xm,ym,true
+		end
+	end
+	--if (mget(x,y) == sp) return x,y,true
+	--if (mget(x-1,y) == sp) return x-1,y,true
+	--if (mget(x+1,y) == sp) return x+1,y,true
 end --near()
 
 function btnu(b)
