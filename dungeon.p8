@@ -110,7 +110,7 @@ function draw_ui()
 	--foreach (ui,draw_panel)
 	--draw_panel(cpanel,"l","b",1,8)
 	if (ipanel) then
-		draw_panel(ipanel,"l","b",1,8,true)
+		draw_panel(ipanel,"c","b",1,8,true)
 	end
  if (log) then
  	--draw_panel(log,"r","b",1,8)
@@ -353,7 +353,7 @@ end --hithead()
 
 function hitbounds()
 	if p.tx<0 or p.tx+p.w<0 or
-				p.tx>127*8 or p.tx+p.w>127*8 or
+				p.tx>128*8 or p.tx+p.w>128*8 or
 				p.ty<0 or p.ty+p.h<0 or
 				p.ty>63*8 or p.ty+p.h>63*8 then
 		return true
@@ -508,7 +508,7 @@ function init_enemies()
 end
 
 function update_enemies()
-	local gx,gy=(p.x-gamew/2)/8,(p.y-gamew/2)/8
+	local gx,gy=flr(p.x-gamew/2)/8,flr(p.y-1-gamew/2)/8
 	for i=gx,gx+gamew/8 do
 		for j=gy,gy+gameh/8 do
 			if (fget(mget(i,j),7)) wake_enemy(i,j)
@@ -517,14 +517,14 @@ function update_enemies()
 	foreach(enemies,update_enemy)
 end
 
-function wake_enemy(x,y)
-	local sp=mget(x,y)
+function wake_enemy(mx,my)
+	local sp=mget(mx,my)
 	local c=getclass(sp)
-	local e={x=x*8,y=y*8,tx=x,ty=y,
+	local e={x=mx*8,y=my*8,tx=mx*8,ty=my*8,
 							sp=sp,health=c.health,
 							flipx=c.flipx,class=c}
 	add(enemies,e)
-	mset(x,y,0)
+	mset(mx,my,0)
 end
 
 function getclass(sp)
@@ -542,7 +542,7 @@ function update_enemy(e)
 	local d = -1
 	if (e.flipx) d=1  --direction
 	e.tx = e.x+e.class.speed*d
-	if bonk(e.tx,e.y) then
+	if bonk(e.tx,e.y) or e.tx<0 or e.tx>128*8 then
 		e.tx = e.x
 		e.flipx = not e.flipx
 	else
