@@ -50,10 +50,13 @@ function init_cam(half)
 	lerpy=p.y
 	camx_timer=30
 	camy_timer=60
+	camxspeed=0
+	camyspeed=0
 end
 
 function update_cam()
 	--update cam x
+	
 	if lerpx==p.x then
 		camx_timer=15
 	else
@@ -118,7 +121,7 @@ function draw_ui()
 end
 
 function draw_panel(panel,horz,vert,fill,outline,centered)
-	local x,y,w,h,gap = 0,0,0,0,3
+	local x,y,w,h,gap = 0,0,0,0,1
 	local special="⬅️➡️⬆️⬇️❎🅾️"
 	local lines={}
 	--panel height
@@ -147,7 +150,7 @@ function draw_panel(panel,horz,vert,fill,outline,centered)
 	if (vert=="c") y=gameh/2-h/2
 	if (vert=="m") y=gameh/2+h/3
 	rectfill(x,y,x+w-2,y+h-1,1)
-	rect(x,y,x+w-2,y+h-1,8)
+	--rect(x,y,x+w-2,y+h-1,8)
 	for i = 1,#panel do
 		local ln=panel[i]
 		local mod=0
@@ -160,15 +163,16 @@ end
 
 function lower(s)
 	local d=""
+	local c=true
 	for i=1,#s do
 		local a=sub(s,i,i)
-		for j=1,26 do
-			if a==sub("abcdefghijklmnopqrstuvwxyz",j,j) then
-				a=sub("\65\66\67\68\69\70\71\72\73\74\75\76\77\78\79\80\81\82\83\84\85\86\87\88\89\90\91\92",j,j)
-			end
-		end
+			for j=1,26 do
+				if a==sub("abcdefghijklmnopqrstuvwxyz",j,j) then
+					a=sub("\65\66\67\68\69\70\71\72\73\74\75\76\77\78\79\80\81\82\83\84\85\86\87\88\89\90\91\92",j,j)
+				end --if a
+			end -- forj
 		d=d..a
-	end
+	end-- for i
 	return d
 end
 
@@ -586,13 +590,19 @@ function update_items()
  	end -- locked door
  		
  	local x,y,t=near(79)
- 	if t then --key
+ 	if t then --door
  			set_ipanel({"🅾️ open door"})
  			if btnp(🅾️) then
  				set_ipanel({"door opened"})
  				mset(x,y, 80)
  			end
  	end --wooden door
+ 	
+ 	--[[
+ 	--bash door
+ 	local x,y,t=touching(79)
+ 	if (t) mset(x,y,80)
+ 	--]]
  		
 end --update_items()
 
