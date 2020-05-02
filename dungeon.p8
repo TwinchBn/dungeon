@@ -5,33 +5,20 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
-	log={}
-	make_ui()
-	make_items()
+	--make_items()
 	--make_map()
 	gravity=.2
-	make_player()
-	size(64)
+	init_player()
+	init_enemies()
+	init_ui()
+	init_cam(true) --true=halfsize
 end --_init()
-
-function size(w)
-	gamew=w
-	gameh=w
-	camw=w/2
-	camh=w/3
-	if (w==64) then
-		poke(0x5f2c,3)
-		camh=w/2
-	end
-	lerpx=p.x
-	lerpy=p.y
-	camx_timer=30
-	camy_timer=60
-end
 
 function _update()
 	--poke(0x5f00+92,255)
+	log={}
  update_player()
+ update_enemies()
  update_items()
  update_ui()
  update_cam()
@@ -42,10 +29,28 @@ function _draw()
 	camera(lerpx-camw,lerpy-camh)
 	--map(0,0,0,0,128,64)
  map(0,0,0,0,128,64)
+ foreach(enemies,draw_enemy)
  draw_player()
  camera(0,0)
  draw_ui()
 end --_draw()
+
+--------------------
+-----  camera  -----
+--------------------
+function init_cam(half)
+	gamew,gameh=128,128
+	camw,camh=gamew/2,gameh/3
+	if (half) then
+		poke(0x5f2c,3)
+		gamew,gameh=64,64
+		camw,camh=gamew/2,gameh/2
+	end    
+	lerpx=p.x
+	lerpy=p.y
+	camx_timer=30
+	camy_timer=60
+end
 
 function update_cam()
 	--update cam x
@@ -60,7 +65,7 @@ function update_cam()
 	end
 		--update cam y
 	if lerpy==p.y then
-		camy_timer=15
+		camy_timer=20
 	else
 		camy_timer -= 1
 		if camy_timer<0 then
@@ -78,8 +83,11 @@ function lerp(a,b,t)
 	return a + t * (b-a)
 end --lerp()
 
------ui-----
-function make_ui()
+--------------------
+-----    ui    -----
+--------------------
+function init_ui()
+	--log={}
 	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
 end --make_ui()
 
@@ -102,11 +110,11 @@ function draw_ui()
 	--foreach (ui,draw_panel)
 	--draw_panel(cpanel,"l","b",1,8)
 	if (ipanel) then
-		draw_panel(ipanel,"c","b",1,8,true)
+		draw_panel(ipanel,"l","b",1,8,true)
 	end
- --if (log) then
+ if (log) then
  	--draw_panel(log,"r","b",1,8)
- --end
+ end
 end
 
 function draw_panel(panel,horz,vert,fill,outline,centered)
@@ -143,10 +151,25 @@ function draw_panel(panel,horz,vert,fill,outline,centered)
 	for i = 1,#panel do
 		local ln=panel[i]
 		local mod=0
+		if (gamew==64) ln=lower(ln)
 		if (centered) mod=(w-lines[i])/2
 		
 		print(ln,x+gap+mod,y+gap+(i-1)*(5+gap),6)
 	end --for
+end
+
+function lower(s)
+	local d=""
+	for i=1,#s do
+		local a=sub(s,i,i)
+		for j=1,26 do
+			if a==sub("abcdefghijklmnopqrstuvwxyz",j,j) then
+				a=sub("\65\66\67\68\69\70\71\72\73\74\75\76\77\78\79\80\81\82\83\84\85\86\87\88\89\90\91\92",j,j)
+			end
+		end
+		d=d..a
+	end
+	return d
 end
 
 --[[
@@ -167,10 +190,10 @@ end --debug()
 --]]
 -->8
 --player
-function make_player()
+function init_player()
 	p={     --attributes
-		x=8,y=48,--pos
-		speed=1,--walk speed
+		x=8,y=57,--pos
+		speed=1.25,--walk speed
 		jforce=-2.25,--jump force
 		jumps=0,maxjumps=2,--jumps
 		framerate=12,
@@ -216,9 +239,8 @@ function update_player()
 		p.sp=p.state.sp[p.frame]
 	end
 	--log_player()
+	add(log,"p:"..flr(p.x)..","..flr(p.y))
 end
-
-
 
 
 function move()
@@ -317,7 +339,7 @@ function trymove()
  end --trymove()
  
  function bonk(x,y)
- 	add(log,"bonk: "..x..","..y)
+ 	--add(log,"bonk: "..x..","..y)
  	--add(log,"bonk: "..x..","..y)
  	return fget(mget(x/8,y/8),0)
  end --bonk
@@ -475,26 +497,67 @@ end
 --]]
 -->8
 --enemies
--->8
---map
 
-function make_items()
- 	--temp_item=nil
- 	for y=0,32 do
- 		for x=0,128 do
- 			--local cell=mget(x,y)
- 			--[[
- 			if cell==84 then --key
- 				add(keys,{x=x,y=y})
- 				add(keys,{x=x*8,y=y*8,
- 					w=8,h=8,name="key"})
- 				mset(x,y,0)
- 			end -- key
- 			--]]
- 		end -- for x
- 	end --for y
-end --make_items
- 
+function init_enemies()
+	enemies={}
+	enemy_classes={
+		{sp=24,name="skeleton",health=1,speed=.5},
+		{sp=16,name="unknown",health=5,speed=.5},
+	}
+	
+end
+
+function update_enemies()
+	local gx,gy=(p.x-gamew/2)/8,(p.y-gamew/2)/8
+	for i=gx,gx+gamew/8 do
+		for j=gy,gy+gameh/8 do
+			if (fget(mget(i,j),7)) wake_enemy(i,j)
+		end
+	end
+	foreach(enemies,update_enemy)
+end
+
+function wake_enemy(x,y)
+	local sp=mget(x,y)
+	local c=getclass(sp)
+	local e={x=x*8,y=y*8,tx=x,ty=y,
+							sp=sp,health=c.health,
+							flipx=c.flipx,class=c}
+	add(enemies,e)
+	mset(x,y,0)
+end
+
+function getclass(sp)
+	for e in all (enemy_classes) do
+		if (e.sp==sp) return e
+	end
+	return {sp=sp,name="unknown",health=5,speed=.5}
+	
+end
+
+function update_enemy(e)
+	--sleep if offscreen+full health
+	
+	--if not hitting wall, move
+	local d = -1
+	if (e.flipx) d=1  --direction
+	e.tx = e.x+e.class.speed*d
+	if bonk(e.tx,e.y) then
+		e.tx = e.x
+		e.flipx = not e.flipx
+	else
+		e.x = e.tx
+	end
+	
+	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
+	
+end
+
+function draw_enemy(e)
+	spr(e.sp,e.x,e.y,1,1,e.flipx)
+end
+-->8
+--items
  
 function update_items()
  	local x,y,t=near(84)
@@ -542,6 +605,25 @@ function draw_items()
  	end
  	--]]
  end --draw_items
+--]]
+
+--[[
+function make_items()
+ 	--temp_item=nil
+ 	for y=0,32 do
+ 		for x=0,128 do
+ 			--local cell=mget(x,y)
+ 			--[[
+ 			if cell==84 then --key
+ 				add(keys,{x=x,y=y})
+ 				add(keys,{x=x*8,y=y*8,
+ 					w=8,h=8,name="key"})
+ 				mset(x,y,0)
+ 			end -- key
+ 			--]]
+ 		end -- for x
+ 	end --for y
+end --make_items
 --]]
 -->8
 --biomes
@@ -606,7 +688,7 @@ end --touching()
 function near(sp)
 	--local x,y = flr(p.x/8),flr(p.y/8)
 	local ym = flr(p.y/8)
-	local mod={-4,0,4}
+	local mod={-6,0,6}
 	for i=1,#mod do
 		local xm=flr((p.x+mod[i])/8)
 		if mget(xm,ym) == sp then
@@ -811,7 +893,7 @@ d3d3d38585858585858500008500000000546161000054000000000000000000753585000000e100
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c4c4c4c4c4c4c4c4c4c4c4c4c4
 __gff__
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010101010101010101010101000001000100020000000100010101000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000080808080008080808080808080808080800080808080808080808000800000808080800000000000000000800000000001010101010101010101010101000001000100020000000100010101000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
