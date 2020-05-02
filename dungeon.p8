@@ -26,7 +26,7 @@ end --_update()
 
 function _draw()
 	cls()
-	camera(lerpx-camw,lerpy-camh)
+	draw_cam()
 	--map(0,0,0,0,128,64)
  map(0,0,0,0,128,64)
  foreach(enemies,draw_enemy)
@@ -39,15 +39,20 @@ end --_draw()
 -----  camera  -----
 --------------------
 function init_cam(half)
+	cam={}
 	gamew,gameh=128,128
-	camw,camh=gamew/2,gameh/3
+	cam.w,cam.h=gamew/2,gameh/3
 	if (half) then
 		poke(0x5f2c,3)
 		gamew,gameh=64,64
-		camw,camh=gamew/2,gameh/2
+		cam.w,cam.h=gamew/2,gameh/2
 	end    
-	lerpx=p.x
-	lerpy=p.y
+	cam.lx=p.x
+	cam.ly=p.y
+	cam.x=p.x-cam.w
+	cam.y=p.y-cam.h
+	cam.dx=0
+	cam.dy=0
 	camx_timer=30
 	camy_timer=60
 	camxspeed=0
@@ -55,8 +60,18 @@ function init_cam(half)
 end
 
 function update_cam()
+	--lerp cam x speed
+	--[[
+	cam.dx=movet(cam.dx,p.dx,1/12)
+	cam.dy=movet(cam.dy,p.dy,1/12)
+	cam.x += cam.dx
+	cam.y += cam.dy
+	add(log,"cam: "..cam.x..","..cam.y)
+	--]]
+	cam.x=p.x-cam.w
+	cam.y=p.y-cam.h
+	--[[
 	--update cam x
-	
 	if lerpx==p.x then
 		camx_timer=15
 	else
@@ -80,11 +95,24 @@ function update_cam()
  if hitground() or onladder() then
  	--lerpy=lerp(lerpy,p.y,0.15)
  end
+ --]]
 end --update_cam()
+
+function draw_cam()
+	--camera(lerpx-camw,lerpy-camh)
+	camera(cam.x,cam.y)
+end
  
 function lerp(a,b,t)
 	return a + t * (b-a)
 end --lerp()
+
+function movet(a,b,m)
+	local d = abs(b-a) --distance
+	if (d<=m) return b
+	if (b<a) d *= -1
+	return a + d * m
+end
 
 --------------------
 -----    ui    -----
@@ -212,6 +240,7 @@ function init_player()
  	count=0,--current game frame
  	frame=0,--current anim frame
  	keys=0,
+ 	dx=0,dy=0, --change from last frame
 
  		anim={
  			stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
@@ -225,6 +254,7 @@ function init_player()
 	} --end p
 	p.state=p.anim.stand
 	p.tx,p.ty=p.x,p.y
+	p.px,p.py=p.x,p.y
 	p.⬆️ = false --jump button
 end
 
@@ -234,6 +264,8 @@ function update_player()
  jump()
  fall()
  p.cell=mget(p.x/8,p.y/8)
+ p.dx,p.dy=p.x-p.px,p.y-p.py
+ p.px,p.py=p.x,p.y
 
  --update animation
  p.count+=1
@@ -903,7 +935,7 @@ d3d3d38585858585858500008500000000546161000054000000000000000000753585000000e100
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c4c4c4c4c4c4c4c4c4c4c4c4c4
 __gff__
-0000000000000000000000000000000080808080008080808080808080808080800080808080808080808000800000808080800000000000000000800000000001010101010101010101010101000001000100020000000100010101000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000080808080008080c080808080808080808000808080808080808080008000808080808000c0c0c080800000800000000001010101010101010101010101000001000100020000000100010101000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
