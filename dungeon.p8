@@ -5,11 +5,10 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
-	--make_items()
-	--make_map()
 	gravity=.2
-	init_player()
 	init_enemies()
+	init_items()
+	init_player()
 	init_ui()
 	init_cam(true) --true=halfsize
 end --_init()
@@ -35,6 +34,46 @@ function _draw()
  draw_ui()
 end --_draw()
 
+
+--------------------
+-----  buttons  ----
+--------------------
+function btnu(b)
+	if b==⬆️ or b==🅾️ then
+		if not btn(b) and p.⬆️ then
+			p.⬆️ = false
+			return true
+		end
+	end
+end --btnu
+
+function btnd(b)
+		if b==⬆️ or b==🅾️ then
+		if btn(b) and not p.⬆️ then
+			p.⬆️ = true
+			return true
+		end
+	end
+end --btnd
+
+
+--------------------
+-----  utility  ----
+--------------------
+function lerp(a,b,t)
+	return a + t * (b-a)
+end --lerp()
+
+function movet(a,b,m)
+	local d = abs(b-a) --distance
+	if (d<=m) return b
+	--if (b<a) m *= -1
+	--return a + d * m
+	return a + sgn(b-a) * m
+end --movetowards
+
+
+
 --------------------
 -----  camera  -----
 --------------------
@@ -51,8 +90,8 @@ function init_cam(half)
 	cam.ly=p.y
 	cam.x=p.x-cam.w
 	cam.y=p.y-cam.h
-	cam.dx=0
-	cam.dy=0
+	cam.cx=0
+	cam.cy=0
 	camx_timer=30
 	camy_timer=60
 	camxspeed=0
@@ -60,18 +99,24 @@ function init_cam(half)
 end
 
 function update_cam()
-	--lerp cam x speed
-	--[[
-	cam.dx=movet(cam.dx,p.dx,1/12)
-	cam.dy=movet(cam.dy,p.dy,1/12)
-	cam.x += cam.dx
-	cam.y += cam.dy
-	add(log,"cam: "..cam.x..","..cam.y)
-	--]]
+	--no lerp
+	--[
 	cam.x=p.x-cam.w
 	cam.y=p.y-cam.h
+	--]]
+	
+	--lerp cam x speed
 	--[[
+	cam.cx=movet(cam.cx,p.cx,1/5)
+	cam.cy=movet(cam.cy,p.cy,1/5)
+	cam.x += cam.cx
+	cam.y += cam.cy
+	add(log,"cam: "..cam.x..","..cam.y)
+	--]]
+
+	
 	--update cam x
+	--[[
 	if lerpx==p.x then
 		camx_timer=15
 	else
@@ -103,129 +148,13 @@ function draw_cam()
 	camera(cam.x,cam.y)
 end
  
-function lerp(a,b,t)
-	return a + t * (b-a)
-end --lerp()
 
-function movet(a,b,m)
-	local d = abs(b-a) --distance
-	if (d<=m) return b
-	if (b<a) d *= -1
-	return a + d * m
-end
-
---------------------
------    ui    -----
---------------------
-function init_ui()
-	--log={}
-	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
-end --make_ui()
-
-function update_ui()
-	if ipanel_timer then
-		ipanel_timer -= 1
-		if ipanel_timer <=0 then
-			ipanel=nil
-			ipanel_timer=nil
-		end
-	end
-end --update_ui()
-
-function set_ipanel(msg,t)
-	ipanel=msg
- if (t==nil) ipanel_timer=30
-end
-
-function draw_ui()
-	--foreach (ui,draw_panel)
-	--draw_panel(cpanel,"l","b",1,8)
-	if (ipanel) then
-		draw_panel(ipanel,"c","b",1,8,true)
-	end
- if (log) then
- 	--draw_panel(log,"r","b",1,8)
- end
-end
-
-function draw_panel(panel,horz,vert,fill,outline,centered)
-	local x,y,w,h,gap = 0,0,0,0,1
-	local special="⬅️➡️⬆️⬇️❎🅾️"
-	local lines={}
-	--panel height
-	h = #panel*(5+gap)+gap
-	--line width
-	for i=1,#panel do
-		local ln = panel[i]
-		local w2 = #ln*4 + gap*2
-		for j=1,#ln do
-			for k=1,#special do
-				if sub(ln,j,j)==sub(special,k,k) then
-				 w2+=4
-				end
-			end
-		end
-		add(lines,w2)
-		if (w2>w) w=w2
-	end --line width
-	--panel width
-	if (horz=="l") x=0
-	if (horz=="r") x=gamew-w
-	if (horz=="c") x=gamew/2-w/2
-	--panel height
-	if (vert=="t") y=0
-	if (vert=="b") y=gameh-h
-	if (vert=="c") y=gameh/2-h/2
-	if (vert=="m") y=gameh/2+h/3
-	rectfill(x,y,x+w-2,y+h-1,1)
-	--rect(x,y,x+w-2,y+h-1,8)
-	for i = 1,#panel do
-		local ln=panel[i]
-		local mod=0
-		if (gamew==64) ln=lower(ln)
-		if (centered) mod=(w-lines[i])/2
-		
-		print(ln,x+gap+mod,y+gap+(i-1)*(5+gap),6)
-	end --for
-end
-
-function lower(s)
-	local d=""
-	local c=true
-	for i=1,#s do
-		local a=sub(s,i,i)
-			for j=1,26 do
-				if a==sub("abcdefghijklmnopqrstuvwxyz",j,j) then
-					a=sub("\65\66\67\68\69\70\71\72\73\74\75\76\77\78\79\80\81\82\83\84\85\86\87\88\89\90\91\92",j,j)
-				end --if a
-			end -- forj
-		d=d..a
-	end-- for i
-	return d
-end
-
---[[
-function debug()
-	local x,y,w,h,gap = 0,0,0,0,3
-	h = #log*(5+gap)+gap --height
-	for i=1,#log do --line width
-		local w2 = #(log[i])*4 + gap*2
-		if (w2>w) w=w2
-	end --line length
-	x,y = 127-w,127-h
-	rectfill(x,y,x+w,y+h,1)
-	rect(x,y,x+w,y+h,8)
-	for i = 1,#log do
-		print(log[i],x+gap,y+gap+(i-1)*(5+gap),6)
-	end --for
-end --debug()
---]]
 -->8
 --player
 function init_player()
 	p={     --attributes
-		x=8,y=57,--pos
-		speed=1.25,--walk speed
+		x=8,y=48,--pos
+		speed=2,--walk speed
 		jforce=-2.25,--jump force
 		jumps=0,maxjumps=2,--jumps
 		framerate=12,
@@ -240,8 +169,11 @@ function init_player()
  	count=0,--current game frame
  	frame=0,--current anim frame
  	keys=0,
- 	dx=0,dy=0, --change from last frame
-
+ 	weapon=weapons.sword, --weapon
+ 	cx=0,cy=0, --change from last frame
+		health=10,maxhealth=10,
+		dead=false,
+	
  		anim={
  			stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
 				walk={sp={7,8},x=0,y=1,w=4,h=8,name="walk"},
@@ -263,21 +195,55 @@ function update_player()
  move() --walk,climb,crouch
  jump()
  fall()
+ combat()
+ 
  p.cell=mget(p.x/8,p.y/8)
- p.dx,p.dy=p.x-p.px,p.y-p.py
+ p.cx,p.cy=p.x-p.px,p.y-p.py
  p.px,p.py=p.x,p.y
 
- --update animation
+	animate()
+	--log_player()
+	add(log,"p:"..flr(p.x)..","..flr(p.y))
+end
+
+function animate()
+	 --update animation
  p.count+=1
  if p.count%(30/p.framerate) == 0 then
  	p.frame+=1
  	if (p.frame>#p.state.sp) p.frame=1
 		p.sp=p.state.sp[p.frame]
-	end
-	--log_player()
-	add(log,"p:"..flr(p.x)..","..flr(p.y))
+	end --if
 end
 
+function combat()
+	if btnp(❎) and #enemies>0 then
+		foreach (enemies,attack)
+	end --if
+	for e in all (enemies) do
+		
+	end
+	if (p.health<=0) p.dead=true
+end
+
+function attack(e)
+	local wp = {w=p.weapon.w,
+		x=p.x+p.weapon.x*p.xscale,
+		y=p.y+p.weapon.y,h=p.weapon.h}
+		
+	local ee = {x=e.x,y=e.y,
+		w=e.class.w,h=e.class.h}
+ 
+ if collide(wp,ee) then
+		e.health -= p.weapon.dmg
+		if e.health <= 0 then
+			del(enemies,e)
+		end --if health<=0
+		e.flipx = e.x<p.x
+		e.x += 4 * sgn(e.x-p.x)
+		
+	end --if collide
+end
 
 function move()
 	--walking
@@ -297,15 +263,23 @@ function move()
 		--p.state=p.anim.walk
 	end
 	
-	--climbing
+	--[      climbing
 	if onladder() then
 		if (btn(2)) p.ty -= p.speed
 		if (btn(3)) p.ty += p.speed
-	end
+	end --]] climbing
 	
+	--[  
 	if not trymove() then
 		p.tx,p.ty=p.x,p.y
-	end
+	end --]]
+	
+	--[[
+	if not (hithead() or	
+ 		 					hitground() or 
+ 		 					hitbounds()) then
+ 	p.tx,p.ty=p.x,p.y
+	end	--]]	
 	
 	--setting animation states
 	if (p.y != p.ty) then
@@ -372,13 +346,13 @@ function trymove()
  		 hitground() or hitbounds()
  	return not hit
 
- end --trymove()
+end --trymove()
  
- function bonk(x,y)
- 	--add(log,"bonk: "..x..","..y)
- 	--add(log,"bonk: "..x..","..y)
- 	return fget(mget(x/8,y/8),0)
- end --bonk
+function bonk(x,y)
+ --add(log,"bonk: "..x..","..y)
+ --add(log,"bonk: "..x..","..y)
+ return fget(mget(x/8,y/8),0)
+end --bonk
 
 function hithead()
 	if bonk(p.tx,p.ty+p.state.y) or
@@ -425,26 +399,6 @@ function groundis(sp)
 end
 
 
-function pbox(x,y)
-	--return player hit box
-	local x1=x-p.state.w/2
-	local x2=x+p.state.w/2
-	local y1=y+7-p.state.h
-	local y2=y+7
- return x1,y1,x2,y2
-end --pbox()
-
-function box(obj,temp) --return box
- local x,y = obj.x,obj.y
- if (temp) x,y=obj.tx,obj.ty
- local x1=x-obj.w/2
- local x2=x+obj.w/2
- local y1=y+7-obj.h
- local y2=y+obj.h
- return x1,y1,x2,y2
-end --box()
-
-
 function draw_player(outline)
 	--p.sp=p.state.sp[]
 	
@@ -453,6 +407,9 @@ function draw_player(outline)
 	local xsp=x1-p.state.x
 	if (p.flip) xsp=x1-8+p.state.w+p.state.x
 	spr(p.sp,xsp,y1,1,1,p.flip)
+	
+	--weapon
+	spr(p.weapon.sp,xsp,y1,1,1,p.flip)
 	
 -- bounding box
 	if outline then
@@ -478,17 +435,7 @@ end
 --]]
 
 
---[[
-function bonk4()
-	if bonk(p.tx,p.ty) or
-				--bonk(p.tx,p.ty+p.h) or
-				bonk(p.tx+p.w,p.ty) or
-				--bonk(p.tx+p.w,p.ty+p.h) then
-				hitground() then
-		return true
-	end
-end --bonk4()
---]]
+
 
 --[[
 function move_player()
@@ -512,15 +459,6 @@ end
 --]]
 
 --[[
-function draw_player()
-	spr(p.state.spr[0], 
-	p.x+p.state.x, 
-	p.y+p.state.y)
-end
---]]
-
-
---[[
 function log_player()
 	log={}
 	add(log,"x,y: "..p.x..","..p.y)
@@ -537,10 +475,11 @@ end
 function init_enemies()
 	enemies={}
 	enemy_classes={
-		{sp=24,name="skeleton",health=1,speed=.5},
-		{sp=16,name="unknown",health=5,speed=.5},
+		{sp=24,name="skeleton",
+			health=3,speed=.5,w=5,h=8},
+		{sp=16,name="unknown",
+			health=5,speed=.5,w=8,h=8},
 	}
-	
 end
 
 function update_enemies()
@@ -575,10 +514,11 @@ function update_enemy(e)
 	--sleep if offscreen+full health
 	
 	--if not hitting wall, move
-	local d = -1
-	if (e.flipx) d=1  --direction
+	local d = 1
+	if (e.flipx) d=-1  --direction
 	e.tx = e.x+e.class.speed*d
-	if bonk(e.tx,e.y) or e.tx<0 or e.tx>128*8 then
+	if bonk(e.tx+4,e.ty) or 
+		e.tx<0 or e.tx>128*8 then
 		e.tx = e.x
 		e.flipx = not e.flipx
 	else
@@ -589,11 +529,24 @@ function update_enemy(e)
 	
 end
 
+
 function draw_enemy(e)
 	spr(e.sp,e.x,e.y,1,1,e.flipx)
 end
 -->8
 --items
+
+function init_items()
+	weapons={
+		none={dmg=0,t=1,r=0,
+			x=4,y=1,w=4,h=7,
+			sp=15,anim={15}},
+		sword={dmg=1,t=5,r=4,
+			x=4,y=1,w=4,h=7,
+			sp=9,anim={9,10,11}}
+	}
+	
+end
  
 function update_items()
  	local x,y,t=near(84)
@@ -695,33 +648,31 @@ function box(obj,temp) --return box
  return x1,y1,x2,y2
 end --box()
 
+function pbox(x,y)
+	--return player hit box
+	local x1=x-p.state.w/2
+	local x2=x+p.state.w/2
+	local y1=y+7-p.state.h
+	local y2=y+7
+ return x1,y1,x2,y2
+end --pbox()
 
-function collide(p,e)
- local l1,t1,r1,b1 = box(p)
- local l2,t2,r2,b2 = box(e)
- if r1>l2 and r2>l1 and
- 			b1>t2 and b2>t1 then
- 	--[[
- 	local x1,y1,w1,h1 = 
- 		p.x+p.state.x,
- 		p.y+p.state.y,
- 		p.state.w,p.state.h
- 	local x2,y2,w2,h2 =
- 		e.x,e.y,e.w,e.h
- 	
- 	if (x1+w1>x2 and x2+w2>x1 and
- 					y1+h1>y2 and y2+w2>y1) then
- 	--]]
+function collide(a,b)
+ if a.x+a.w>b.x and
+ 			b.x+b.w>a.x and
+ 			a.y+a.h>b.y and
+ 			b.y+b.h>a.y then
  	return true
  end
-end -- collide()
- 
- function touching(sp)
-		local x1,y1,x2,y2 = box(p,true)
-		if (mget(x1/8,y1/8) == sp or
-				 mget(x2/8,y1/8) == sp or
-				 mget(x1/8,y2/8) == sp or
-				 mget(x2/8,y2/8) == sp) then
+ return false
+end --collide
+
+function touching(sp)
+	local x1,y1,x2,y2 = box(p,true)
+	if mget(x1/8,y1/8) == sp or
+				mget(x2/8,y1/8) == sp or
+				mget(x1/8,y2/8) == sp or
+				mget(x2/8,y2/8) == sp then
 		--return fget(p.cell,1)
 		return true
 	end
@@ -742,23 +693,25 @@ function near(sp)
 	--if (mget(x+1,y) == sp) return x+1,y,true
 end --near()
 
-function btnu(b)
-	if b==⬆️ or b==🅾️ then
-		if not btn(b) and p.⬆️ then
-			p.⬆️ = false
-			return true
-		end
-	end
-end --btnu
 
-function btnd(b)
-		if b==⬆️ or b==🅾️ then
-		if btn(b) and not p.⬆️ then
-			p.⬆️ = true
-			return true
-		end
-	end
-end --btnd
+
+--[[
+ function collide(p,e)
+ 	local x1,y1,w1,h1 = 
+ 		p.x+p.state.x,
+ 		p.y+p.state.y,
+ 		p.state.w,p.state.h
+ 	local x2,y2,w2,h2 =
+ 		e.x,e.y,e.w,e.h
+
+ 	if (x1+w1>x2 and x2+w2>x1 and
+ 					y1+h1>y2 and y2+w2>y1) then
+ 	 return true
+ 	else
+ 		return false
+ 	end
+ end
+ --]]
 
 
 
@@ -777,8 +730,9 @@ end --btnd
 		return false
  	end
  end
+--]]
 
-
+--[[
  function collide_all()
  	for e in all (enemies) do
  		if (collide(p,e)) return true
@@ -788,40 +742,162 @@ end --btnd
  	end
  	return false
  end
-
- function collide(p,e)
- 	local x1,y1,w1,h1 = 
- 		p.x+p.state.x,
- 		p.y+p.state.y,
- 		p.state.w,p.state.h
- 	local x2,y2,w2,h2 =
- 		e.x,e.y,e.w,e.h
-
- 	if (x1+w1>x2 and x2+w2>x1 and
- 					y1+h1>y2 and y2+w2>y1) then
- 	 return true
- 	else
- 		return false
- 	end
- end
  --]]
+ 
+--[[
+function bonk4()
+	if bonk(p.tx,p.ty) or
+				--bonk(p.tx,p.ty+p.h) or
+				bonk(p.tx+p.w,p.ty) or
+				--bonk(p.tx+p.w,p.ty+p.h) then
+				hitground() then
+		return true
+	end
+end --bonk4()
+--]]
+-->8
+--ui
+
+function init_ui()
+	--log={}
+	dpanel={"you have been","pixelated","❎ restart"}
+ 	
+	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
+	uh={x=0,y=0,w=12,h=0,cb=8,cf=11} --health
+	uk={x=0,y=2,w=6,h=3} --keys
+end --make_ui()
+
+function update_ui()
+	if ipanel_timer then
+		ipanel_timer -= 1
+		if ipanel_timer <=0 then
+			ipanel=nil
+			ipanel_timer=nil
+		end
+	end
+end --update_ui()
+
+function set_ipanel(msg,t)
+	ipanel=msg
+ if (t==nil) ipanel_timer=30
+end
+
+function draw_ui()
+	--foreach (ui,draw_panel)
+	--draw_panel(cpanel,"l","b",1,8)
+	if (ipanel) then
+		draw_panel(ipanel,"c","b",1,8,true)
+	end
+ if (log) then
+ 	--draw_panel(log,"r","b",1,8)
+ end
+ for i=1,p.keys do
+ 	spr(93,uk.x+uk.w*(i-1),uk.y)
+ end
+ healthbar()
+ if (p.dead) then
+ 	draw_panel(dpanel,"c","c",1,8,true)
+ 	if (btnp(❎)) _init()
+ end --if p.dead
+end
+
+function healthbar()
+	--rectfill(0,0,20,0,8)
+	uh.fill=uh.w*p.health/p.maxhealth
+ --uh.fill=5
+ rectfill(uh.x,uh.y,uh.x+uh.w,uh.y+uh.h,uh.cb)
+ rectfill(uh.x,uh.y,uh.x+uh.fill,uh.y+uh.h,uh.cf)
+end
+
+function draw_panel(panel,horz,vert,fill,outline,centered)
+	local x,y,w,h,gap = 0,0,0,0,1
+	local special="⬅️➡️⬆️⬇️❎🅾️"
+	local lines={}
+	--panel height
+	h = #panel*(5+gap)+gap
+	--line width
+	for i=1,#panel do
+		local ln = panel[i]
+		local w2 = #ln*4 + gap*2
+		for j=1,#ln do
+			for k=1,#special do
+				if sub(ln,j,j)==sub(special,k,k) then
+				 w2+=4
+				end
+			end
+		end
+		add(lines,w2)
+		if (w2>w) w=w2
+	end --line width
+	--panel width
+	if (horz=="l") x=0
+	if (horz=="r") x=gamew-w
+	if (horz=="c") x=gamew/2-w/2
+	--panel height
+	if (vert=="t") y=0
+	if (vert=="b") y=gameh-h-1
+	if (vert=="c") y=gameh/2-h/2
+	if (vert=="m") y=gameh/2+h/3
+	rectfill(x,y,x+w-2,y+h-1,1)
+	rect(x-1,y-1,x+w-1,y+h,13)
+	for i = 1,#panel do
+		local ln=panel[i]
+		local mod=0
+		if (gamew==64) ln=lower(ln)
+		if (centered) mod=(w-lines[i])/2
+		
+		print(ln,x+gap+mod,y+gap+(i-1)*(5+gap),6)
+	end --for
+end
+
+function lower(s)
+	local d=""
+	local c=true
+	for i=1,#s do
+		local a=sub(s,i,i)
+			for j=1,26 do
+				if a==sub("abcdefghijklmnopqrstuvwxyz",j,j) then
+					a=sub("\65\66\67\68\69\70\71\72\73\74\75\76\77\78\79\80\81\82\83\84\85\86\87\88\89\90\91\92",j,j)
+				end --if a
+			end -- forj
+		d=d..a
+	end-- for i
+	return d
+end
+
+--[[
+function debug()
+	local x,y,w,h,gap = 0,0,0,0,3
+	h = #log*(5+gap)+gap --height
+	for i=1,#log do --line width
+		local w2 = #(log[i])*4 + gap*2
+		if (w2>w) w=w2
+	end --line length
+	x,y = 127-w,127-h
+	rectfill(x,y,x+w,y+h,1)
+	rect(x,y,x+w,y+h,8)
+	for i = 1,#log do
+		print(log[i],x+gap,y+gap+(i-1)*(5+gap),6)
+	end --for
+end --debug()
+--]]
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000ce0000000000000c000000001c00c0000c00c1000000000c0000000c000000000000000000000000000000000000000000000000000000000000000
-0070070008801000c00000000ce00000010cc000000cc010000000000ce000000ce0000000000000000000000000000000000000000000000000000000000000
-00077000088100000ce0000008801000011881100118811000000000088010000880100000000000000000000000000000000000000000000000000000000000
-00077000022000000880000008810000000880100108800000000000088100000881000000000000000000000000000000000000000000000000000000000000
-007007002002000008810000022000000002201001022000001100c0022000000220000000000000000000000000000000000000000000000000000000000000
-00000000000000000220000020020000002002000020020022288c00200200002002000000000000000000000000000000000000000000000000000000000000
-00000000000000002002000020020000002002000020020022288e00000200002000000000000000000000000000000000000000000000000000000000000000
-00000000600005000000000000000000000000000000000000000900000000000005550001055500010555001105550000055500e4e4d8d80000000000000000
-60000500600d50c0600005006000050000000000000000000000999000000000000c5c00010c5c00010c5c00110c5c00000c5c00444488880000000000000000
-600d50c060122010600d50c0600d50c0005000000000000000000900aa1b1baa0005550005655500056555000605550600055506444488880000000000000000
-60122010510221006012201060122010000500000000000000000000a7bbbb7a0006660005066600050667770666666606666666444488880000000000000000
-51022100050110005102210051022100000600000000bbbb00001b1b77bbbb7700606060000060600000677700006000000060001b1bc9c90000999900008888
-050110000010010005011000050110000506110000001b1b0000bbbb00bbbb000000100000001000000017770000100011001000bbbb99990000c9c90000d8d8
-00100100000000000010010000100100005621110000bbbb0000bbbb000000000001010000010100000101700001010011010100bbbb99990000999900008888
-00100100000000000010000000000100c0d221110000bbbb0000bbbb000000000001010000010100000101000001010000010100bbbb99990000999900008888
+000000000ce0000000000000c000000001c00c0000c00c1000000000c0000000c000000000000060000000050000000000000000000000000000000000000000
+0070070008801000c00000000ce00000010cc000000cc010000000000ce000000ce0000000000600000005550000000000000000000000000000000000000000
+00077000088100000ce0000008801000011881100118811000000000088010000880100000006000000055550000000000000000000000000000000000000000
+00077000022000000880000008810000000880100108800000000000088100000881000000000000000066660000555500000000000000000000000000000000
+007007002002000008810000022000000002201001022000001100c0022000000220000000000000000000000000655500000000000000000000000000000000
+00000000000000000220000020020000002002000020020022288c00200200002002000000000000000000000000065000000000000000000000000000000000
+00000000000000002002000020020000002002000020020022288e00000200002000000000000000000000000000006000000000000000000000000000000000
+00000000600005000000000000000000000000000000000000000900000000000555000001055500010555001105550000055500e4e4d8d80000000000000000
+60000500600d50c06000050060000500000000000000000000009990000000000c5c0000010c5c00010c5c00110c5c00000c5c00444488880000000000000000
+600d50c060122010600d50c0600d50c0005000000000000000000900aa1b1baa0555000005655500056555000605550600055506444488880000000000000000
+60122010510221006012201060122010000500000000000000000000a7bbbb7a0666000005066600050667770666666606666666444488880000000000000000
+51022100050110005102210051022100000600000000bbbb00001b1b77bbbb7760606000000060600000677700006000000060001b1bc9c90000999900008888
+050110000010010005011000050110000506110000001b1b0000bbbb00bbbb000010000000001000000017770000100011001000bbbb99990000c9c90000d8d8
+00100100000000000010010000100100005621110000bbbb0000bbbb000000000101000000010100000101700001010011010100bbbb99990000999900008888
+00100100000000000010000000000100c0d221110000bbbb0000bbbb000000000101000000010100000101000001010000010100bbbb99990000999900008888
 00000000000000000000000000000000000000006008800600000110000000000000000000000000000005500000000000000000000000000000000000000000
 00444400000000000000000000000000000000006001100600000110060777770600c0c0000000007700015000000000000c5c00000000000000000000000000
 6094940000000000000000000000000000001100601111060000c88c6467c5c70600110000888880070005500000000000005000005000000000000000000000
@@ -846,9 +922,9 @@ __gfx__
 11588511511155115161151122888e22b739937bb3bbbb3bdddddddd898888987767777777cc7cc776cc8887d5d5444544454444000018000001888000005500
 111551111511151115115161228222e2b377773bb333333bdcdcdcdc9c9889c977777767cc7ccc7c77c78886dd55445444444464000081000001118000004400
 11111111511111516115111522822222bbbbbbbbbbbbbbbbcdcdcdcdc8c88c8c76777777ccc7cccc67ccccc7dddd445446444444000011000001111000004400
-00044440000066000006666040000004000060000000000000000000a99ada9900000000111111111111111182222222b333333b000000000000000000000000
-00044440000066000006666044444444000606000000000000000000a9aaa99a0000000018811111111111158888222833044033000000000000000000000000
-00044440000077000006667040000004000060000000000000000000a9aa99aa000000001118818811111d51222882883b0440b3000000000000000000000000
+00044440000066000006666040000004000060000000000000000000a99ada9900000000111111111111111182222222b333333b060060000000000000000000
+00044440000066000006666044444444000606000000000000000000a9aaa99a0000000018811111111111158888222833044033606660000000000000000000
+00044440000077000006667040000004000060000000000000000000a9aa99aa000000001118818811111d51222882883b0440b3060000000000000000000000
 00055550000055000006665044444444000060000000000000000000aaa99aaa00000000111118811115155122228282bb0440bb000000000000000000000000
 00044440000055000006665040000004000060000505050500000000da99aa9a0000000011818811111155518888828cbb0440bb000000000000000000000000
 00055550000077000006667044444444006660000505050500500050a99aaa9a0000000011818111111112218888888cb004400b000000000000000000000000
