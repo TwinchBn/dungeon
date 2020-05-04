@@ -217,12 +217,42 @@ function animate()
 end
 
 function combat()
+	local x1,y1,x2,y2 = box(p)
+	local pp = {x=x1,y=y1,w=x2-x1,h=y2-y1}
+	local pw = {w=p.weapon.w,
+		x=p.x+p.weapon.x*p.xscale*2,
+		y=p.y+p.weapon.y,h=p.weapon.h}
+
+	for e in all (enemies) do
+		local ee = {x=e.x,y=e.y,
+		w=e.class.w,h=e.class.h}
+		
+		-- enemy hits player
+		if e.cool>0 then
+			e.cool -= 1
+		elseif collide(pp,ee) and e.cool<=0 then
+			p.health -= e.class.dmg
+			e.cool = e.class.cool
+		end --if e hit p
+ 
+ 	-- player weapon hits enemy
+ 	if btnp(❎) and collide(pw,ee) then
+			e.health -= p.weapon.dmg
+			if e.health <= 0 then
+				del(enemies,e)
+			end --if health<=0
+			e.flipx = e.x<p.x
+			e.x += 4 * sgn(e.x-p.x)
+		end --if p hit e
+	end --enemies loop
+	
+	--[[
 	if btnp(❎) and #enemies>0 then
 		foreach (enemies,attack)
 	end --if
 	for e in all (enemies) do
 		
-	end
+	end --]]
 	if (p.health<=0) p.dead=true
 end
 
@@ -475,10 +505,12 @@ end
 function init_enemies()
 	enemies={}
 	enemy_classes={
-		{sp=24,name="skeleton",
-			health=3,speed=.5,w=5,h=8},
-		{sp=16,name="unknown",
-			health=5,speed=.5,w=8,h=8},
+		{sp=24,name="skeleton",dmg=1,
+			health=3,speed=.5,w=5,h=8,
+			cool=10},
+		{sp=16,name="unknown",dmg=1,
+			health=5,speed=.5,w=8,h=8,
+			cool=10},
 	}
 end
 
@@ -497,7 +529,7 @@ function wake_enemy(mx,my)
 	local c=getclass(sp)
 	local e={x=mx*8,y=my*8,tx=mx*8,ty=my*8,
 							sp=sp,health=c.health,
-							flipx=c.flipx,class=c}
+							flipx=c.flipx,cool=0,class=c}
 	add(enemies,e)
 	mset(mx,my,0)
 end
@@ -843,7 +875,7 @@ function draw_panel(panel,horz,vert,fill,outline,centered)
 	for i = 1,#panel do
 		local ln=panel[i]
 		local mod=0
-		if (gamew==64) ln=lower(ln)
+		--if (gamew==64) ln=lower(ln)
 		if (centered) mod=(w-lines[i])/2
 		
 		print(ln,x+gap+mod,y+gap+(i-1)*(5+gap),6)
