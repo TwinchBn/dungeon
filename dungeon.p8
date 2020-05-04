@@ -237,12 +237,7 @@ function combat()
  
  	-- player weapon hits enemy
  	if btnp(❎) and collide(pw,ee) then
-			e.health -= p.weapon.dmg
-			if e.health <= 0 then
-				del(enemies,e)
-			end --if health<=0
-			e.flipx = e.x<p.x
-			e.x += 4 * sgn(e.x-p.x)
+			hit_enemy(e)
 		end --if p hit e
 	end --enemies loop
 	
@@ -507,11 +502,12 @@ function init_enemies()
 	enemy_classes={
 		{sp=24,name="skeleton",dmg=1,
 			health=3,speed=.5,w=5,h=8,
-			cool=10},
+			cool=10,hitc=6,hitr=8},
 		{sp=16,name="unknown",dmg=1,
 			health=5,speed=.5,w=8,h=8,
-			cool=10},
+			cool=10,hitc=6,hitr=8},
 	}
+	e_hitflash=15
 end
 
 function update_enemies()
@@ -529,7 +525,8 @@ function wake_enemy(mx,my)
 	local c=getclass(sp)
 	local e={x=mx*8,y=my*8,tx=mx*8,ty=my*8,
 							sp=sp,health=c.health,
-							flipx=c.flipx,cool=0,class=c}
+							flipx=c.flipx,cool=0,
+							hitflash=0,class=c}
 	add(enemies,e)
 	mset(mx,my,0)
 end
@@ -557,13 +554,29 @@ function update_enemy(e)
 		e.x = e.tx
 	end
 	
+	if (e.hitflash>0) e.hitflash -=1
+	
 	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
 	
 end
 
+function hit_enemy(e)
+	e.health -= p.weapon.dmg
+	e.hitflash=e_hitflash
+	if e.health <= 0 then
+		del(enemies,e)
+	end --if health<=0
+	e.flipx = e.x<p.x
+	e.x += 4 * sgn(e.x-p.x)
+end
+
 
 function draw_enemy(e)
+	if e.hitflash>0 then
+		pal(e.class.hitc,e.class.hitr)
+	end
 	spr(e.sp,e.x,e.y,1,1,e.flipx)
+	pal()
 end
 -->8
 --items
