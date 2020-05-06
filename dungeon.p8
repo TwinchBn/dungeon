@@ -150,13 +150,142 @@ end
  
 
 -->8
+--ui
+
+function init_ui()
+	--log={}
+	dpanel={"you have been","pixelated","❎ restart"}
+ 	
+	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
+	uh={x=0,y=0,w=12,h=0,cb=8,cf=11} --health
+	uk={x=0,y=2,w=6,h=3} --keys
+end --make_ui()
+
+function update_ui()
+	if ipanel_timer then
+		ipanel_timer -= 1
+		if ipanel_timer <=0 then
+			ipanel=nil
+			ipanel_timer=nil
+		end
+	end
+end --update_ui()
+
+function set_ipanel(msg,t)
+	ipanel=msg
+ if (t==nil) ipanel_timer=30
+end
+
+function draw_ui()
+	--foreach (ui,draw_panel)
+	--draw_panel(cpanel,"l","b",1,8)
+	if (ipanel) then
+		draw_panel(ipanel,"c","b",1,8,true)
+	end
+ if (log) then
+ 	--draw_panel(log,"r","b",1,8)
+ end
+ for i=1,p.keys do
+ 	spr(93,uk.x+uk.w*(i-1),uk.y)
+ end
+ healthbar()
+ if (p.dead) then
+ 	draw_panel(dpanel,"c","c",1,8,true)
+ 	if btnp(❎) then
+ 	 reload(0x2000, 0x2000, 0x1000)
+ 		_init()
+ 	end --if btnp(❎)
+ end --if p.dead
+end
+
+function healthbar()
+	--rectfill(0,0,20,0,8)
+	uh.fill=uh.w*p.health/p.maxhealth
+ --uh.fill=5
+ rectfill(uh.x,uh.y,uh.x+uh.w,uh.y+uh.h,uh.cb)
+ rectfill(uh.x,uh.y,uh.x+uh.fill,uh.y+uh.h,uh.cf)
+end
+
+function draw_panel(panel,horz,vert,fill,outline,centered)
+	local x,y,w,h,gap = 0,0,0,0,1
+	local special="⬅️➡️⬆️⬇️❎🅾️"
+	local lines={}
+	--panel height
+	h = #panel*(5+gap)+gap
+	--line width
+	for i=1,#panel do
+		local ln = panel[i]
+		local w2 = #ln*4 + gap*2
+		for j=1,#ln do
+			for k=1,#special do
+				if sub(ln,j,j)==sub(special,k,k) then
+				 w2+=4
+				end
+			end
+		end
+		add(lines,w2)
+		if (w2>w) w=w2
+	end --line width
+	--panel width
+	if (horz=="l") x=0
+	if (horz=="r") x=gamew-w
+	if (horz=="c") x=gamew/2-w/2
+	--panel height
+	if (vert=="t") y=0
+	if (vert=="b") y=gameh-h-1
+	if (vert=="c") y=gameh/2-h/2
+	if (vert=="m") y=gameh/2+h/3
+	rectfill(x,y,x+w-2,y+h-1,1)
+	rect(x-1,y-1,x+w-1,y+h,13)
+	for i = 1,#panel do
+		local ln=panel[i]
+		local mod=0
+		--if (gamew==64) ln=lowercase(ln)
+		if (centered) mod=(w-lines[i])/2
+		
+		print(ln,x+gap+mod,y+gap+(i-1)*(5+gap),6)
+	end --for
+end
+
+function lowercase(s)
+	local d=""
+	local c=true
+	for i=1,#s do
+		local a=sub(s,i,i)
+			for j=1,26 do
+				if a==sub("abcdefghijklmnopqrstuvwxyz",j,j) then
+					a=sub("\65\66\67\68\69\70\71\72\73\74\75\76\77\78\79\80\81\82\83\84\85\86\87\88\89\90\91\92",j,j)
+				end --if a
+			end -- forj
+		d=d..a
+	end-- for i
+	return d
+end
+
+--[[
+function debug()
+	local x,y,w,h,gap = 0,0,0,0,3
+	h = #log*(5+gap)+gap --height
+	for i=1,#log do --line width
+		local w2 = #(log[i])*4 + gap*2
+		if (w2>w) w=w2
+	end --line length
+	x,y = 127-w,127-h
+	rectfill(x,y,x+w,y+h,1)
+	rect(x,y,x+w,y+h,8)
+	for i = 1,#log do
+		print(log[i],x+gap,y+gap+(i-1)*(5+gap),6)
+	end --for
+end --debug()
+--]]
+-->8
 --player
 function init_player()
 	p={     --attributes
 		x=8,y=48,--pos
 		speed=2,--walk speed
 		jforce=-2.25,--jump force
-		jumps=0,maxjumps=2,--jumps
+		jumps=0,maxjumps=1,--jumps
 		framerate=12,
 		
 		--temp stuff
@@ -174,15 +303,17 @@ function init_player()
 		health=10,maxhealth=10,
 		dead=false,
 	
- 		anim={
- 			stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
-				walk={sp={7,8},x=0,y=1,w=4,h=8,name="walk"},
-				crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
-				jump={sp={1},x=0,y=0,w=4,h=8,name="jump"},
-				climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
-			}, --end anim
-		inventory={},
-		weapons={},
+ 	anim={
+ 		rate=12,tick=0,fr=0,sp=0,
+ 		stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
+			walk={sp={7,8},x=0,y=1,w=4,h=8,name="walk"},
+			crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
+			jump={sp={1},x=0,y=0,w=4,h=8,name="jump"},
+			climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
+		}, --end anim
+		--inventory={},
+		w_anim={rate=12,tick=0,fr=0,sp=0,dur=5},
+		weapons={},hitting=false
 	} --end p
 	p.state=p.anim.stand
 	p.tx,p.ty=p.x,p.y
@@ -192,85 +323,34 @@ end
 
 function update_player()
 	btnu(⬆️)
- move() --walk,climb,crouch
+ move_player() --walk,climb,crouch
  jump()
  fall()
  combat()
+	player_combat()
  
  p.cell=mget(p.x/8,p.y/8)
  p.cx,p.cy=p.x-p.px,p.y-p.py
  p.px,p.py=p.x,p.y
 
-	animate()
+	--animate_player()
+	animate(p.anim,p.state.sp)
 	--log_player()
 	add(log,"p:"..flr(p.x)..","..flr(p.y))
 end
 
-function animate()
+
+function animate(obj,frames)
 	 --update animation
- p.count+=1
- if p.count%(30/p.framerate) == 0 then
- 	p.frame+=1
- 	if (p.frame>#p.state.sp) p.frame=1
-		p.sp=p.state.sp[p.frame]
+ obj.tick+=1
+ if obj.tick%(30/obj.rate) == 0 then
+ 	obj.fr+=1
+ 	if (obj.fr>#frames) obj.fr=1
+		obj.sp = frames[obj.fr]
 	end --if
 end
 
-function combat()
-	local x1,y1,x2,y2 = box(p)
-	local pp = {x=x1,y=y1,w=x2-x1,h=y2-y1}
-	local pw = {w=p.weapon.w,
-		x=p.x+p.weapon.x*p.xscale*2,
-		y=p.y+p.weapon.y,h=p.weapon.h}
-
-	for e in all (enemies) do
-		local ee = {x=e.x,y=e.y,
-		w=e.class.w,h=e.class.h}
-		
-		-- enemy hits player
-		if e.cool>0 then
-			e.cool -= 1
-		elseif collide(pp,ee) and e.cool<=0 then
-			p.health -= e.class.dmg
-			e.cool = e.class.cool
-		end --if e hit p
- 
- 	-- player weapon hits enemy
- 	if btnp(❎) and collide(pw,ee) then
-			hit_enemy(e)
-		end --if p hit e
-	end --enemies loop
-	
-	--[[
-	if btnp(❎) and #enemies>0 then
-		foreach (enemies,attack)
-	end --if
-	for e in all (enemies) do
-		
-	end --]]
-	if (p.health<=0) p.dead=true
-end
-
-function attack(e)
-	local wp = {w=p.weapon.w,
-		x=p.x+p.weapon.x*p.xscale,
-		y=p.y+p.weapon.y,h=p.weapon.h}
-		
-	local ee = {x=e.x,y=e.y,
-		w=e.class.w,h=e.class.h}
- 
- if collide(wp,ee) then
-		e.health -= p.weapon.dmg
-		if e.health <= 0 then
-			del(enemies,e)
-		end --if health<=0
-		e.flipx = e.x<p.x
-		e.x += 4 * sgn(e.x-p.x)
-		
-	end --if collide
-end
-
-function move()
+function move_player()
 	--walking
 	local speed=p.speed
 	if (groundis(75)) speed/=2
@@ -373,56 +453,6 @@ function trymove()
 
 end --trymove()
  
-function bonk(x,y)
- --add(log,"bonk: "..x..","..y)
- --add(log,"bonk: "..x..","..y)
- return fget(mget(x/8,y/8),0)
-end --bonk
-
-function hithead()
-	if bonk(p.tx,p.ty+p.state.y) or
-				bonk(p.tx+p.w,p.ty+p.state.y) then
-		return true
-	end
-end --hithead()
-
-function hitbounds()
-	if p.tx<0 or p.tx+p.w<0 or
-				p.tx>128*8 or p.tx+p.w>128*8 or
-				p.ty<0 or p.ty+p.h<0 or
-				p.ty>63*8 or p.ty+p.h>63*8 then
-		return true
-	end
-end --hitbounds()
-
-function hitground()
---one point only
-	if (bonk(p.tx,p.ty+p.h)) return true
-	
-	--[[
-	local x1,y1,x2,y2 = box(p,true)
-	--local x1,y1,x2,y2 = pbox(p.tx,p.ty)
-	if (bonk(x1,y2) or 
-					bonk(x2,y2)) then
-		return true
-	end --if
-	--]]
-	
-	--[[
-	--local x1,y1,x2,y2 = pbox(p.tx,p.ty)
-	if bonk(p.tx,p.ty+p.h) or
-				bonk(p.tx+p.w,p.ty+p.h) then
-		return true
-	end
-	--]]
-end --hitground()
-
-function groundis(sp)
- if mget(p.tx/8,p.ty+10/8) == sp then
- 	return true
- end
-end
-
 
 function draw_player(outline)
 	--p.sp=p.state.sp[]
@@ -431,10 +461,10 @@ function draw_player(outline)
 	local x1,y1,x2,y2 = pbox(p.x,p.y)
 	local xsp=x1-p.state.x
 	if (p.flip) xsp=x1-8+p.state.w+p.state.x
-	spr(p.sp,xsp,y1,1,1,p.flip)
+	spr(p.anim.sp,xsp,y1,1,1,p.flip)
 	
 	--weapon
-	spr(p.weapon.sp,xsp,y1,1,1,p.flip)
+	spr(p.w_anim.sp,xsp,y1,1,1,p.flip)
 	
 -- bounding box
 	if outline then
@@ -500,7 +530,7 @@ end
 function init_enemies()
 	enemies={}
 	enemy_classes={
-		{sp=24,name="skeleton",dmg=1,
+		{sp=24,name="skeleton",dmg=3,
 			health=3,speed=.5,w=5,h=8,
 			cool=10,hitc=6,hitr=8},
 		{sp=16,name="unknown",dmg=1,
@@ -509,6 +539,7 @@ function init_enemies()
 	}
 	e_hitflash=15
 end
+
 
 function update_enemies()
 	local gx,gy=flr(p.x-gamew/2)/8,flr(p.y-1-gamew/2)/8
@@ -519,6 +550,7 @@ function update_enemies()
 	end
 	foreach(enemies,update_enemy)
 end
+
 
 function wake_enemy(mx,my)
 	local sp=mget(mx,my)
@@ -531,13 +563,17 @@ function wake_enemy(mx,my)
 	mset(mx,my,0)
 end
 
+
 function getclass(sp)
 	for e in all (enemy_classes) do
 		if (e.sp==sp) return e
 	end
-	return {sp=sp,name="unknown",health=5,speed=.5}
+	return {sp=sp,name="unknown",dmg=1,
+		health=5,speed=.5,w=8,h=8,
+		cool=10,hitc=6,hitr=8}
 	
 end
+
 
 function update_enemy(e)
 	--sleep if offscreen+full health
@@ -560,16 +596,6 @@ function update_enemy(e)
 	
 end
 
-function hit_enemy(e)
-	e.health -= p.weapon.dmg
-	e.hitflash=e_hitflash
-	if e.health <= 0 then
-		del(enemies,e)
-	end --if health<=0
-	e.flipx = e.x<p.x
-	e.x += 4 * sgn(e.x-p.x)
-end
-
 
 function draw_enemy(e)
 	if e.hitflash>0 then
@@ -578,108 +604,6 @@ function draw_enemy(e)
 	spr(e.sp,e.x,e.y,1,1,e.flipx)
 	pal()
 end
--->8
---items
-
-function init_items()
-	weapons={
-		none={dmg=0,t=1,r=0,
-			x=4,y=1,w=4,h=7,
-			sp=15,anim={15}},
-		sword={dmg=1,t=5,r=4,
-			x=4,y=1,w=4,h=7,
-			sp=9,anim={9,10,11}}
-	}
-	
-end
- 
-function update_items()
- 	local x,y,t=near(84)
- 	if t then --key
- 			--set_ipanel({"iron key","❎ take"})
- 			set_ipanel({"🅾️ take key"})
- 			if btnp(🅾️) then
- 				set_ipanel({"key taken"})
- 				p.keys += 1
- 				mset(x,y, 0)
- 			end
- 	end --keys
- 	
- 	local x,y,t=near(81)
- 	if t then --door
- 		if (p.keys>0) then
- 			set_ipanel({"🅾️ unlock door"})
- 			if btnp(🅾️) then
- 				set_ipanel({"door unlocked"})
- 				p.keys -= 1
- 				mset(x,y,82)
- 			end
- 		else
- 			set_ipanel({"locked door"})
- 		end
- 	end -- locked door
- 		
- 	local x,y,t=near(79)
- 	if t then --door
- 			set_ipanel({"🅾️ open door"})
- 			if btnp(🅾️) then
- 				set_ipanel({"door opened"})
- 				mset(x,y, 80)
- 			end
- 	end --wooden door
- 	
- 	--[[
- 	--bash door
- 	local x,y,t=touching(79)
- 	if (t) mset(x,y,80)
- 	--]]
- 		
-end --update_items()
-
---[[
-function draw_items()
- 	--[[
- 	for k in all (keys) do
- 		spr(84,k.x*8,k.y*8)
- 		spr(84,k.x,k.y)
- 	end
- 	--]]
- end --draw_items
---]]
-
---[[
-function make_items()
- 	--temp_item=nil
- 	for y=0,32 do
- 		for x=0,128 do
- 			--local cell=mget(x,y)
- 			--[[
- 			if cell==84 then --key
- 				add(keys,{x=x,y=y})
- 				add(keys,{x=x*8,y=y*8,
- 					w=8,h=8,name="key"})
- 				mset(x,y,0)
- 			end -- key
- 			--]]
- 		end -- for x
- 	end --for y
-end --make_items
---]]
--->8
---biomes
---[[ comments
-biome names!!!!!
-
-prison,outside,uderground beach
-snowy mountan caves,unmeables cavern
-aliens home,music jungle
-
-
-
-
-
-
-]]
 -->8
 --collision
 
@@ -737,6 +661,61 @@ function near(sp)
 	--if (mget(x-1,y) == sp) return x-1,y,true
 	--if (mget(x+1,y) == sp) return x+1,y,true
 end --near()
+
+
+----- player collision
+function bonk(x,y)
+ --add(log,"bonk: "..x..","..y)
+ --add(log,"bonk: "..x..","..y)
+ return fget(mget(x/8,y/8),0)
+end --bonk
+
+function hithead()
+	if bonk(p.tx,p.ty+p.state.y) or
+				bonk(p.tx+p.w,p.ty+p.state.y) then
+		return true
+	end
+end --hithead()
+
+function hitbounds()
+	if p.tx<0 or p.tx+p.w<0 or
+				p.tx>128*8 or p.tx+p.w>128*8 or
+				p.ty<0 or p.ty+p.h<0 or
+				p.ty>63*8 or p.ty+p.h>63*8 then
+		return true
+	end
+end --hitbounds()
+
+function hitground()
+--one point only
+	if (bonk(p.tx,p.ty+p.h)) return true
+	
+	--[[
+	local x1,y1,x2,y2 = box(p,true)
+	--local x1,y1,x2,y2 = pbox(p.tx,p.ty)
+	if (bonk(x1,y2) or 
+					bonk(x2,y2)) then
+		return true
+	end --if
+	--]]
+	
+	--[[
+	--local x1,y1,x2,y2 = pbox(p.tx,p.ty)
+	if bonk(p.tx,p.ty+p.h) or
+				bonk(p.tx+p.w,p.ty+p.h) then
+		return true
+	end
+	--]]
+end --hitground()
+
+function groundis(sp)
+ if mget(p.tx/8,p.ty+10/8) == sp then
+ 	return true
+ end
+end
+
+
+
 
 
 
@@ -801,131 +780,185 @@ function bonk4()
 end --bonk4()
 --]]
 -->8
---ui
+--combat
 
-function init_ui()
-	--log={}
-	dpanel={"you have been","pixelated","❎ restart"}
- 	
-	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
-	uh={x=0,y=0,w=12,h=0,cb=8,cf=11} --health
-	uk={x=0,y=2,w=6,h=3} --keys
-end --make_ui()
+function combat()
+	local x1,y1,x2,y2 = box(p)
+	local pp = {x=x1,y=y1,w=x2-x1,h=y2-y1}
+	local pw = {w=p.weapon.w,
+		x=p.x+p.weapon.x*p.xscale*2,
+		y=p.y+p.weapon.y,h=p.weapon.h}
 
-function update_ui()
-	if ipanel_timer then
-		ipanel_timer -= 1
-		if ipanel_timer <=0 then
-			ipanel=nil
-			ipanel_timer=nil
-		end
-	end
-end --update_ui()
-
-function set_ipanel(msg,t)
-	ipanel=msg
- if (t==nil) ipanel_timer=30
-end
-
-function draw_ui()
-	--foreach (ui,draw_panel)
-	--draw_panel(cpanel,"l","b",1,8)
-	if (ipanel) then
-		draw_panel(ipanel,"c","b",1,8,true)
-	end
- if (log) then
- 	--draw_panel(log,"r","b",1,8)
- end
- for i=1,p.keys do
- 	spr(93,uk.x+uk.w*(i-1),uk.y)
- end
- healthbar()
- if (p.dead) then
- 	draw_panel(dpanel,"c","c",1,8,true)
- 	if (btnp(❎)) _init()
- end --if p.dead
-end
-
-function healthbar()
-	--rectfill(0,0,20,0,8)
-	uh.fill=uh.w*p.health/p.maxhealth
- --uh.fill=5
- rectfill(uh.x,uh.y,uh.x+uh.w,uh.y+uh.h,uh.cb)
- rectfill(uh.x,uh.y,uh.x+uh.fill,uh.y+uh.h,uh.cf)
-end
-
-function draw_panel(panel,horz,vert,fill,outline,centered)
-	local x,y,w,h,gap = 0,0,0,0,1
-	local special="⬅️➡️⬆️⬇️❎🅾️"
-	local lines={}
-	--panel height
-	h = #panel*(5+gap)+gap
-	--line width
-	for i=1,#panel do
-		local ln = panel[i]
-		local w2 = #ln*4 + gap*2
-		for j=1,#ln do
-			for k=1,#special do
-				if sub(ln,j,j)==sub(special,k,k) then
-				 w2+=4
-				end
-			end
-		end
-		add(lines,w2)
-		if (w2>w) w=w2
-	end --line width
-	--panel width
-	if (horz=="l") x=0
-	if (horz=="r") x=gamew-w
-	if (horz=="c") x=gamew/2-w/2
-	--panel height
-	if (vert=="t") y=0
-	if (vert=="b") y=gameh-h-1
-	if (vert=="c") y=gameh/2-h/2
-	if (vert=="m") y=gameh/2+h/3
-	rectfill(x,y,x+w-2,y+h-1,1)
-	rect(x-1,y-1,x+w-1,y+h,13)
-	for i = 1,#panel do
-		local ln=panel[i]
-		local mod=0
-		--if (gamew==64) ln=lower(ln)
-		if (centered) mod=(w-lines[i])/2
+	for e in all (enemies) do
+		local ee = {x=e.x,y=e.y,
+		w=e.class.w,h=e.class.h}
 		
-		print(ln,x+gap+mod,y+gap+(i-1)*(5+gap),6)
-	end --for
+		-- enemy hits player
+		if e.cool>0 then
+			e.cool -= 1
+		elseif collide(pp,ee) and e.cool<=0 then
+			p.health -= e.class.dmg
+			e.cool = e.class.cool
+		end --if e hit p
+	
+ 	-- player weapon hits enemy
+ 		if btnp(❎) and collide(pw,ee) then
+				hit_enemy(e)
+			end --if btnp(❎)
+		
+		if (p.health<=0) p.dead=true
+	end --enemies loop
 end
 
-function lower(s)
-	local d=""
-	local c=true
-	for i=1,#s do
-		local a=sub(s,i,i)
-			for j=1,26 do
-				if a==sub("abcdefghijklmnopqrstuvwxyz",j,j) then
-					a=sub("\65\66\67\68\69\70\71\72\73\74\75\76\77\78\79\80\81\82\83\84\85\86\87\88\89\90\91\92",j,j)
-				end --if a
-			end -- forj
-		d=d..a
-	end-- for i
-	return d
+
+function player_combat()
+ if p.hitting then
+		animate(p.w_anim,p.weapon.sp)
+		if p.w_anim.tick>p.weapon.dur then
+			p.hitting=false
+		end --tick
+	else --if not p.hitting
+		if btnp(❎) then
+			p.w_anim.tick=1
+ 		p.hitting=true
+ 	end
+		p.w_anim.sp=p.weapon.sp[1]	
+	end --p.hitting
+end --player_combat
+
+
+function hit_enemy(e)
+	e.health -= p.weapon.dmg
+	e.hitflash=e_hitflash
+	if e.health <= 0 then
+		del(enemies,e)
+	end --if health<=0
+	e.flipx = e.x<p.x
+	e.x += 4 * sgn(e.x-p.x)
 end
 
 --[[
-function debug()
-	local x,y,w,h,gap = 0,0,0,0,3
-	h = #log*(5+gap)+gap --height
-	for i=1,#log do --line width
-		local w2 = #(log[i])*4 + gap*2
-		if (w2>w) w=w2
-	end --line length
-	x,y = 127-w,127-h
-	rectfill(x,y,x+w,y+h,1)
-	rect(x,y,x+w,y+h,8)
-	for i = 1,#log do
-		print(log[i],x+gap,y+gap+(i-1)*(5+gap),6)
-	end --for
-end --debug()
+function attack(e)
+	local wp = {w=p.weapon.w,
+		x=p.x+p.weapon.x*p.xscale,
+		y=p.y+p.weapon.y,h=p.weapon.h}
+		
+	local ee = {x=e.x,y=e.y,
+		w=e.class.w,h=e.class.h}
+ 
+ if collide(wp,ee) then
+		e.health -= p.weapon.dmg
+		if e.health <= 0 then
+			del(enemies,e)
+		end --if health<=0
+		e.flipx = e.x<p.x
+		e.x += 4 * sgn(e.x-p.x)
+		
+	end --if collide
+end
 --]]
+-->8
+--items
+
+function init_items()
+	weapons={
+		none={dmg=0,t=1,r=0,
+			x=4,y=1,w=4,h=7,dur=0,
+			sp={15}},
+		sword={dmg=1,t=5,r=4,
+			x=4,y=1,w=4,h=7,dur=10,
+			sp={9,10,11}}
+	}
+	
+end
+ 
+function update_items()
+ 	local x,y,t=near(84)
+ 	if t then --key
+ 			--set_ipanel({"iron key","❎ take"})
+ 			set_ipanel({"🅾️ take key"})
+ 			if btnp(🅾️) then
+ 				set_ipanel({"key taken"})
+ 				p.keys += 1
+ 				mset(x,y, 0)
+ 			end
+ 	end --keys
+ 	
+ 	local x,y,t=near(81)
+ 	if t then --door
+ 		if (p.keys>0) then
+ 			set_ipanel({"🅾️ unlock door"})
+ 			if btnp(🅾️) then
+ 				set_ipanel({"door unlocked"})
+ 				p.keys -= 1
+ 				mset(x,y,82)
+ 			end
+ 		else
+ 			set_ipanel({"locked door"})
+ 		end
+ 	end -- locked door
+ 		
+ 	local x,y,t=near(79)
+ 	if t then --door
+ 			set_ipanel({"🅾️ open door"})
+ 			if btnp(🅾️) or btnp(❎) then
+ 				set_ipanel({"door opened"})
+ 				mset(x,y, 80)
+ 			end
+ 	end --wooden door
+ 	
+ 	--[[
+ 	--bash door
+ 	local x,y,t=touching(79)
+ 	if (t) mset(x,y,80)
+ 	--]]
+ 		
+end --update_items()
+
+--[[
+function draw_items()
+ 	--[[
+ 	for k in all (keys) do
+ 		spr(84,k.x*8,k.y*8)
+ 		spr(84,k.x,k.y)
+ 	end
+ 	--]]
+ end --draw_items
+--]]
+
+--[[
+function make_items()
+ 	--temp_item=nil
+ 	for y=0,32 do
+ 		for x=0,128 do
+ 			--local cell=mget(x,y)
+ 			--[[
+ 			if cell==84 then --key
+ 				add(keys,{x=x,y=y})
+ 				add(keys,{x=x*8,y=y*8,
+ 					w=8,h=8,name="key"})
+ 				mset(x,y,0)
+ 			end -- key
+ 			--]]
+ 		end -- for x
+ 	end --for y
+end --make_items
+--]]
+-->8
+--biomes
+--[[ comments
+biome names!!!!!
+
+prison,outside,uderground beach
+snowy mountan caves,unmeables cavern
+aliens home,music jungle
+
+
+
+
+
+
+]]
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000ce0000000000000c000000001c00c0000c00c1000000000c0000000c000000000000060000000050000000000000000000000000000000000000000
