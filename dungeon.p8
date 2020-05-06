@@ -945,8 +945,17 @@ function make_items()
 end --make_items
 --]]
 -->8
---biomes
+--notes
 --[[ comments
+sprite, name, damage, health
+24 skeleton dmg=2,health=3
+
+
+
+
+
+--biomes
+
 biome names!!!!!
 
 prison,outside,uderground beach
