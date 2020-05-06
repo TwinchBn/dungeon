@@ -312,7 +312,7 @@ function init_player()
 			climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
 		}, --end anim
 		--inventory={},
-		w_anim={rate=12,tick=0,fr=0,sp=0,dur=5},
+		w_anim={rate=15,tick=0,fr=0,sp=0,dur=10},
 		weapons={},hitting=false
 	} --end p
 	p.state=p.anim.stand
@@ -814,7 +814,7 @@ end
 function player_combat()
  if p.hitting then
 		animate(p.w_anim,p.weapon.sp)
-		if p.w_anim.tick>p.weapon.dur then
+		if p.w_anim.tick>p.w_anim.dur then
 			p.hitting=false
 		end --tick
 	else --if not p.hitting
