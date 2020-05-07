@@ -470,8 +470,6 @@ end --trymove()
  
 
 function draw_player(outline)
-	--p.sp=p.state.sp[]
-	
  --local x1,y1,x2,y2 = box(p)
 	local x1,y1,x2,y2 = pbox(p.x,p.y)
 	local xsp=x1-p.state.x
@@ -613,9 +611,12 @@ function update_enemy(e)
 	if (e.hitflash>0) e.hitflash -=1
 	
 	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
-	
 end
 
+function flip_enemy(e)
+		e.flipx = not e.flipx
+		d *= -1
+end
 
 function draw_enemy(e)
 	if e.hitflash>0 then
