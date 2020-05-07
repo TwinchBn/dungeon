@@ -29,7 +29,7 @@ function _draw()
 	--map(0,0,0,0,128,64)
  map(0,0,0,0,128,64)
  foreach(enemies,draw_enemy)
- draw_player()
+ draw_player(true)
  camera(0,0)
  draw_ui()
 end --_draw()
@@ -290,13 +290,14 @@ function init_player()
 		
 		--temp stuff
 		tx=0,ty=8,--temp x,y
-		sp=3,w=4,h=8,--start sprite
+		w=4,h=8,--start sprite
 		cell=0,--map cell sprite
 		dy=0,--for gravity
  	gnd=false,--on ground?
  	xscale=1,flip=false,--flip
- 	count=0,--current game frame
- 	frame=0,--current anim frame
+ 	--count=0,--current game frame
+ 	--frame=0,--current anim frame
+ 	--sp=3,
  	keys=0,
  	weapon=weapons.sword, --weapon
  	cx=0,cy=0, --change from last frame
@@ -324,6 +325,7 @@ end
 function update_player()
 	btnu(⬆️)
  move_player() --walk,climb,crouch
+ set_player_state()
  jump()
  fall()
  combat()
@@ -370,8 +372,13 @@ function move_player()
 	
 	--[      climbing
 	if onladder() then
-		if (btn(2)) p.ty -= p.speed
-		if (btn(3)) p.ty += p.speed
+		if btn(2) then
+			p.ty -= p.speed
+			p.x = flr(p.x/8)*8
+		elseif btn(3) then
+		 p.ty += p.speed
+			p.x = flr(p.x/8)*8
+		end
 	end --]] climbing
 	
 	--[  
@@ -384,8 +391,11 @@ function move_player()
  		 					hitground() or 
  		 					hitbounds()) then
  	p.tx,p.ty=p.x,p.y
-	end	--]]	
-	
+	end	--]]
+end --move()
+
+
+function set_player_state()
 	--setting animation states
 	if (p.y != p.ty) then
 		p.y = p.ty
@@ -398,7 +408,8 @@ function move_player()
 	else
 		p.state = p.anim.stand
 	end
-end --move()
+end --set_player_state()
+
 
 function jump()
 	if (onladder()) return
@@ -408,6 +419,7 @@ function jump()
 		p.jumps += 1
 	end
 end --jump()
+
 
 function onladder()
 	if (touching(83)) return true
@@ -439,6 +451,9 @@ end --fall()
 function trymove()
  	p.w=(p.state.w-p.state.x-1)*p.xscale
  	p.h=p.state.h-p.state.y-1
+ 	
+ 	--p.w=p.state.w
+ 	--p.h=p.state.h
  	--[[
  	log={}
  	add(log,"player: "..p.x..","..p.y)
@@ -470,9 +485,16 @@ function draw_player(outline)
 	if outline then
 		rect(x1,y1,x2,y2,6)
 		rectfill(p.x,p.y,p.x,p.y,9)
+		rect(p.x+p.weapon.x*p.xscale*2,
+					p.y+p.weapon.y,
+					p.x+p.weapon.x*p.xscale*2+p.weapon.w,
+					p.y+p.weapon.y+p.weapon.h,8)
 	end
 end --draw_player()
 	
+	
+	
+
 --[[
 function climb()
 	local y=p.y
@@ -530,11 +552,11 @@ end
 function init_enemies()
 	enemies={}
 	enemy_classes={
+		{sp=16,name="default",dmg=1,
+			health=5,speed=.5,w=8,h=8,
+			cool=10,hitc=6,hitr=8},
 		{sp=24,name="skeleton",dmg=2,
 			health=3,speed=.5,w=5,h=8,
-			cool=10,hitc=6,hitr=8},
-		{sp=16,name="unknown",dmg=1,
-			health=5,speed=.5,w=8,h=8,
 			cool=10,hitc=6,hitr=8},
 	}
 	e_hitflash=15
@@ -556,7 +578,8 @@ function wake_enemy(mx,my)
 	local sp=mget(mx,my)
 	local c=getclass(sp)
 	local e={x=mx*8,y=my*8,tx=mx*8,ty=my*8,
-							sp=sp,health=c.health,
+							sp=sp,w=c.w,h=c.h,
+							health=c.health,
 							flipx=c.flipx,cool=0,
 							hitflash=0,class=c}
 	add(enemies,e)
@@ -568,10 +591,7 @@ function getclass(sp)
 	for e in all (enemy_classes) do
 		if (e.sp==sp) return e
 	end
-	return {sp=sp,name="unknown",dmg=1,
-		health=5,speed=.5,w=8,h=8,
-		cool=10,hitc=6,hitr=8}
-	
+	return enemy_classes[1]
 end
 
 
@@ -601,7 +621,11 @@ function draw_enemy(e)
 	if e.hitflash>0 then
 		pal(e.class.hitc,e.class.hitr)
 	end
-	spr(e.sp,e.x,e.y,1,1,e.flipx)
+	local sprx = e.x
+	if (e.flipx) sprx=e.x-8+e.w
+	spr(e.sp,sprx,e.y,1,1,e.flipx)
+	rect(e.x,e.y,e.x+e.w,e.y+e.h,8)
+	rectfill(e.x,e.y,e.x,e.y,9)
 	pal()
 end
 -->8
@@ -970,13 +994,13 @@ aliens home,music jungle
 ]]
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000ce0000000000000c000000001c00c0000c00c1000000000c0000000c000000000000060000000050000000000000000000000000000000000000000
-0070070008801000c00000000ce00000010cc000000cc010000000000ce000000ce0000000000600000005550000000000000000000000000000000000000000
-00077000088100000ce0000008801000011881100118811000000000088010000880100000006000000055550000000000000000000000000000000000000000
-00077000022000000880000008810000000880100108800000000000088100000881000000000000000066660000555500000000000000000000000000000000
-007007002002000008810000022000000002201001022000001100c0022000000220000000000000000000000000655500000000000000000000000000000000
+000000000ce0000000000000c000000005c00c0000c00c5000000000c0000000c000000000000060000000050000000000000000000000000000000000000000
+0070070008805000c00000000ce00000050cc000000cc050000000000ce000000ce0000000000600000005550000000000000000000000000000000000000000
+00077000088500000ce0000008805000055885500558855000000000088050000880500000006000000055550000000000000000000000000000000000000000
+00077000022000000880000008850000000880500508800000000000088500000885000000000000000066660000555500000000000000000000000000000000
+007007002002000008850000022000000022205005022200001100c0022000000220000000000000000000000000655500000000000000000000000000000000
 00000000000000000220000020020000002002000020020022288c00200200002002000000000000000000000000065000000000000000000000000000000000
-00000000000000002002000020020000002002000020020022288e00000200002000000000000000000000000000006000000000000000000000000000000000
+00000000000000002002000020020000000002000020000022288e00000200002000000000000000000000000000006000000000000000000000000000000000
 00000000600005000000000000000000000000000000000000000900000000000555000001055500010555001105550000055500e4e4d8d80000000000000000
 60000500600d50c06000050060000500000000000000000000009990000000000c5c0000010c5c00010c5c00110c5c00000c5c00444488880000000000000000
 600d50c060122010600d50c0600d50c0005000000000000000000900aa1b1baa0555000005655500056555000605550600055506444488880000000000000000
