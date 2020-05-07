@@ -29,7 +29,7 @@ function _draw()
 	--map(0,0,0,0,128,64)
  map(0,0,0,0,128,64)
  foreach(enemies,draw_enemy)
- draw_player(true)
+ draw_player()
  camera(0,0)
  draw_ui()
 end --_draw()
@@ -303,6 +303,8 @@ function init_player()
  	cx=0,cy=0, --change from last frame
 		health=10,maxhealth=10,
 		dead=false,
+		x1=0,x2=0,y1=0,y2=0,spx=0,
+		melee={x1=0,x2=0,y1=0,y2=0,spx=0},
 	
  	anim={
  		rate=12,tick=0,fr=0,sp=0,
@@ -310,7 +312,7 @@ function init_player()
 			walk={sp={7,8},x=0,y=1,w=4,h=8,name="walk"},
 			crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
 			jump={sp={1},x=0,y=0,w=4,h=8,name="jump"},
-			climb={sp={4,5},x=1,y=1,w=4,h=8,	name="climb"}
+			climb={sp={4,5},x=1,y=1,w=5,h=8,	name="climb"}
 		}, --end anim
 		--inventory={},
 		w_anim={rate=15,tick=0,fr=0,sp=0,dur=10},
@@ -328,6 +330,8 @@ function update_player()
  set_player_state()
  jump()
  fall()
+ player_hitboxes()
+ 
  combat()
 	player_combat()
  
@@ -351,6 +355,7 @@ function animate(obj,frames)
 		obj.sp = frames[obj.fr]
 	end --if
 end
+
 
 function move_player()
 	--walking
@@ -417,6 +422,7 @@ function jump()
 				p.jumps<p.maxjumps then
 		p.dy=p.jforce
 		p.jumps += 1
+		p.state=p.anim.jump
 	end
 end --jump()
 
@@ -448,45 +454,87 @@ function fall()
 	end
 end --fall()
 
+
 function trymove()
  	p.w=(p.state.w-p.state.x-1)*p.xscale
  	p.h=p.state.h-p.state.y-1
  	
  	--p.w=p.state.w
  	--p.h=p.state.h
- 	--[[
- 	log={}
- 	add(log,"player: "..p.x..","..p.y)
- 	add(log,"anim x,y: "..p.state.x..","..p.state.y)
- 	add(log,"anim w,h: "..p.state.w..","..p.state.h)
- 	add(log,"xmod: "..p.w..","..p.h)
 
- 	--]]
  	local hit = hithead() or	
  		 hitground() or hitbounds()
  	return not hit
 
 end --trymove()
+
+
+function pbox(temp)
+	local x,y=p.x,p.y
+	if (temp) x,y=p.tx,p.ty
+	--return player hit box
+	--[[
+	local x1=x-p.state.w/2
+	local x2=x+p.state.w/2
+	local y1=y+7-p.state.h
+	local y2=y+7
+	--]]
+	local x1 = x-p.state.x
+	if (p.flip) x1=x-8+p.state.w
+	local y1 = y-p.state.y
+	local x2 = x1 + p.state.w
+	local y2 = y1 + p.state.h
+	
+	local wx1 = x+p.weapon.x
+	local wy1 = y+p.weapon.y
+	local wx2 = wx1+p.weapon.w
+	local wy2 = wy1+p.weapon.h
+	
+ return x1,y1,x2,y2,wx1,wy1,wx2,wy2
+end --pbox()
+
+
+function player_hitboxes()
+ p.x1 = p.x --+p.state.x
+	p.y1 = p.y-p.state.y
+	p.x2 = p.x1 + p.state.w
+	p.y2 = p.y1 + p.state.h
+	
+	p.melee.x1 = p.x+p.weapon.x*p.xscale
+	p.melee.y1 = p.y1
+	p.melee.x2 = p.melee.x1+p.weapon.w
+	p.melee.y2 = p.melee.y1+p.weapon.h
+	
+ p.spx = p.x1
+ p.melee.spx = p.melee.x1
+	if p.flip then
+		p.spx -= p.state.w
+		p.melee.spx -= p.weapon.w
+	end
+end
  
 
 function draw_player(outline)
- --local x1,y1,x2,y2 = box(p)
-	local x1,y1,x2,y2 = pbox(p.x,p.y)
-	local xsp=x1-p.state.x
-	if (p.flip) xsp=x1-8+p.state.w+p.state.x
-	spr(p.anim.sp,xsp,y1,1,1,p.flip)
+	--player sprite
+	spr(p.anim.sp,p.spx,p.y1,1,1,p.flip)
 	
 	--weapon
-	spr(p.w_anim.sp,xsp,y1,1,1,p.flip)
+	spr(p.w_anim.sp,p.melee.spx,
+					p.melee.y1,1,1,p.flip)
 	
--- bounding box
+-- bounding boxes
 	if outline then
-		rect(x1,y1,x2,y2,6)
+		rect(p.x1,p.y1,p.x2,p.y2,6)
 		rectfill(p.x,p.y,p.x,p.y,9)
+		rectfill(p.x1,p.y1,p.x1,p.y1,10)
+		rect(p.melee.x1,p.melee.y1,
+							p.melee.x2,p.melee.y2,8)
+		--[[
 		rect(p.x+p.weapon.x*p.xscale*2,
 					p.y+p.weapon.y,
 					p.x+p.weapon.x*p.xscale*2+p.weapon.w,
 					p.y+p.weapon.y+p.weapon.h,8)
+					--]]
 	end
 end --draw_player()
 	
@@ -508,9 +556,6 @@ function climb()
 	end
 end
 --]]
-
-
-
 
 --[[
 function move_player()
@@ -544,6 +589,15 @@ function log_player()
 	add(log,"map cell: "..p.cell)
 end
 --]]
+
+ 	--[[
+ 	log={}
+ 	add(log,"player: "..p.x..","..p.y)
+ 	add(log,"anim x,y: "..p.state.x..","..p.state.y)
+ 	add(log,"anim w,h: "..p.state.w..","..p.state.h)
+ 	add(log,"xmod: "..p.w..","..p.h)
+
+ 	--]]
 -->8
 --enemies
 
@@ -578,6 +632,7 @@ function wake_enemy(mx,my)
 	local e={x=mx*8,y=my*8,tx=mx*8,ty=my*8,
 							sp=sp,w=c.w,h=c.h,
 							health=c.health,
+							speed=-c.speed,
 							flipx=c.flipx,cool=0,
 							hitflash=0,class=c}
 	add(enemies,e)
@@ -597,34 +652,39 @@ function update_enemy(e)
 	--sleep if offscreen+full health
 	
 	--if not hitting wall, move
-	local d = 1
-	if (e.flipx) d=-1  --direction
-	e.tx = e.x+e.class.speed*d
+	--local d = 1
+	--if (e.flipx) d=-1  --direction
+	e.tx = e.x+e.speed
 	if bonk(e.tx+4,e.ty) or 
 		e.tx<0 or e.tx>128*8 then
 		e.tx = e.x
-		e.flipx = not e.flipx
+		flip_enemy(e)
 	else
 		e.x = e.tx
 	end
 	
-	if (e.hitflash>0) e.hitflash -=1
+	if e.hitflash>0 then
+		e.hitflash -=1
+	end
 	
 	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
 end
 
 function flip_enemy(e)
 		e.flipx = not e.flipx
-		d *= -1
+		e.speed *= -1
 end
 
 function draw_enemy(e)
+	--flash enemy if damaged
 	if e.hitflash>0 then
 		pal(e.class.hitc,e.class.hitr)
 	end
+	
 	local sprx = e.x
 	if (e.flipx) sprx=e.x-8+e.w
 	spr(e.sp,sprx,e.y,1,1,e.flipx)
+	
 	rect(e.x,e.y,e.x+e.w,e.y+e.h,8)
 	rectfill(e.x,e.y,e.x,e.y,9)
 	pal()
@@ -642,14 +702,6 @@ function box(obj,temp) --return box
  return x1,y1,x2,y2
 end --box()
 
-function pbox(x,y)
-	--return player hit box
-	local x1=x-p.state.w/2
-	local x2=x+p.state.w/2
-	local y1=y+7-p.state.h
-	local y2=y+7
- return x1,y1,x2,y2
-end --pbox()
 
 function collide(a,b)
  if a.x+a.w>b.x and
@@ -660,6 +712,17 @@ function collide(a,b)
  end
  return false
 end --collide
+
+function collide_xy(a,b)
+ if a.x2>b.x1 and
+ 			b.x2>a.x1 and
+ 			a.y2>b.y1 and
+ 			b.y2>a.y1 then
+ 	return true
+ end
+ return false
+end --collide
+
 
 function touching(sp)
 	local x1,y1,x2,y2 = box(p,true)
@@ -808,26 +871,29 @@ end --bonk4()
 --combat
 
 function combat()
-	local x1,y1,x2,y2 = box(p)
+	--local x1,y1,x2,y2 = box(p)
+	--local pp = {x=p.x1,y=p.y1,w=p.state.w,h=p.state.h}
+	--[[
 	local pp = {x=x1,y=y1,w=x2-x1,h=y2-y1}
 	local pw = {w=p.weapon.w,
 		x=p.x+p.weapon.x*p.xscale*2,
 		y=p.y+p.weapon.y,h=p.weapon.h}
-
+	--]]
 	for e in all (enemies) do
 		local ee = {x=e.x,y=e.y,
 		w=e.class.w,h=e.class.h}
+		local exy = {x1=e.x,y1=e.y,x2=e.x+e.class.w,y2=e.y+e.class.h}
 		
 		-- enemy hits player
 		if e.cool>0 then
 			e.cool -= 1
-		elseif collide(pp,ee) and e.cool<=0 then
+		elseif collide_xy(p,exy) and e.cool<=0 then
 			p.health -= e.class.dmg
 			e.cool = e.class.cool
 		end --if e hit p
 	
  	-- player weapon hits enemy
- 		if btnp(❎) and collide(pw,ee) then
+ 		if btnp(❎) and collide_xy(p.melee,exy) then
 				hit_enemy(e)
 			end --if btnp(❎)
 		
@@ -891,7 +957,7 @@ function init_items()
 			x=4,y=1,w=4,h=7,dur=0,
 			sp={15}},
 		sword={dmg=2,t=5,r=4,
-			x=4,y=1,w=4,h=7,dur=10,
+			x=4,y=0,w=4,h=7,dur=10,
 			sp={9,10,11}}
 	}
 	
@@ -995,13 +1061,13 @@ aliens home,music jungle
 ]]
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000ce0000000000000c000000005c00c0000c00c5000000000c0000000c000000000000060000000050000000000000000000000000000000000000000
-0070070008805000c00000000ce00000050cc000000cc050000000000ce000000ce0000000000600000005550000000000000000000000000000000000000000
-00077000088500000ce0000008805000055885500558855000000000088050000880500000006000000055550000000000000000000000000000000000000000
-00077000022000000880000008850000000880500508800000000000088500000885000000000000000066660000555500000000000000000000000000000000
-007007002002000008850000022000000022205005022200001100c0022000000220000000000000000000000000655500000000000000000000000000000000
-00000000000000000220000020020000002002000020020022288c00200200002002000000000000000000000000065000000000000000000000000000000000
-00000000000000002002000020020000000002000020000022288e00000200002000000000000000000000000000006000000000000000000000000000000000
+000000000ce0000000000000c000000005c00c0000c00c5000000000c0000000c000000000600000000500000000000000000000000000000000000000000000
+0070070008805000c00000000ce00000050cc000000cc050000000000ce000000ce0000006000000055500000000000000000000000000000000000000000000
+00077000088500000ce0000008805000055885500558855000000000088050000880500060000000555500000000000000000000000000000000000000000000
+00077000022000000880000008850000000880500508800000000000088500000885000000000000666600005555000000000000000000000000000000000000
+007007002002000008850000022000000022205005022200001100c0022000000220000000000000000000006555000000000000000000000000000000000000
+00000000000000000220000020020000002002000020020022288c00200200002002000000000000000000000650000000000000000000000000000000000000
+00000000000000002002000020020000000002000020000022288e00000200002000000000000000000000000060000000000000000000000000000000000000
 00000000600005000000000000000000000000000000000000000900000000000555000001055500010555001105550000055500e4e4d8d80000000000000000
 60000500600d50c06000050060000500000000000000000000009990000000000c5c0000010c5c00010c5c00110c5c00000c5c00444488880000000000000000
 600d50c060122010600d50c0600d50c0005000000000000000000900aa1b1baa0555000005655500056555000605550600055506444488880000000000000000
