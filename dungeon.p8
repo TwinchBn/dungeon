@@ -6,6 +6,7 @@ __lua__
 
 function _init()
 	trace=true
+	active=false
 	gravity=.2
 	init_enemies()
 	init_items()
@@ -17,11 +18,13 @@ end --_init()
 function _update()
 	--poke(0x5f00+92,255)
 	log={}
- update_player()
- update_enemies()
- update_items()
+	if active then
+ 	update_player()
+ 	update_enemies()
+ 	update_items()
+ 	update_cam()
+ end
  update_ui()
- update_cam()
 end --_update()
 
 function _draw()
@@ -29,8 +32,10 @@ function _draw()
 	draw_cam()
 	--map(0,0,0,0,128,64)
  map(0,0,0,0,128,64)
- foreach(enemies,draw_enemy)
- draw_player()
+ if active then
+ 	foreach(enemies,draw_enemy)
+ 	draw_player()
+ end
  camera(0,0)
  draw_ui()
 end --_draw()
@@ -83,7 +88,7 @@ function init_cam(half)
 	gamew,gameh=128,128
 	cam.w,cam.h=gamew/2,gameh/3
 	if (half) then
-		poke(0x5f2c,4)
+		poke(0x5f2c,3)
 		gamew,gameh=64,64
 		cam.w,cam.h=gamew/2,gameh/2
 	end    
@@ -156,7 +161,10 @@ end
 function init_ui()
 	--log={}
 	dpanel={"you have been","pixelated","❎ restart"}
- 	
+ spanel={"p|x ✽ cels",
+ 								"p|x ● cels",
+ 								"p|x ☉ cels","",
+ 								"❎ start"}
 	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
 	uh={x=0,y=0,w=12,h=0,cb=8,cf=11} --health
 	uk={x=0,y=2,w=6,h=3} --keys
@@ -180,7 +188,7 @@ end
 function draw_ui()
 	--foreach (ui,draw_panel)
 	--draw_panel(cpanel,"l","b",1,8)
-	if (ipanel) then
+	if (active and ipanel) then
 		draw_panel(ipanel,"c","b",1,8,true)
 	end
  if (log) then
@@ -190,6 +198,12 @@ function draw_ui()
  	spr(93,uk.x+uk.w*(i-1),uk.y)
  end
  healthbar()
+ if (not active and not p.dead) then
+  draw_panel(spanel,"c","c",1,8,true,4)
+ 	if btnp(❎) then
+ 	 active = true
+ 	end --if btnp(❎)
+ end
  if (p.dead) then
  	draw_panel(dpanel,"c","c",1,8,true)
  	if btnp(❎) then
@@ -207,9 +221,10 @@ function healthbar()
  rectfill(uh.x,uh.y,uh.x+uh.fill,uh.y+uh.h,uh.cf)
 end
 
-function draw_panel(panel,horz,vert,fill,outline,centered)
-	local x,y,w,h,gap = 0,0,0,0,1
-	local special="⬅️➡️⬆️⬇️❎🅾️"
+function draw_panel(panel,horz,vert,fill,outline,centered,gap)
+	local x,y,w,h = 0,0,0,0
+	if (gap==nil) gap=1
+	--local special="⬅️➡️⬆️⬇️❎🅾️✽◆"
 	local lines={}
 	--panel height
 	h = #panel*(5+gap)+gap
@@ -218,11 +233,13 @@ function draw_panel(panel,horz,vert,fill,outline,centered)
 		local ln = panel[i]
 		local w2 = #ln*4 + gap*2
 		for j=1,#ln do
-			for k=1,#special do
-				if sub(ln,j,j)==sub(special,k,k) then
+			--for k=1,#special do
+				--if sub(ln,j,j)==sub(special,k,k) then
+				local ltr = sub(ln,j,j)
+				if ord(ltr) > 127 and ord(ltr) < 154 then
 				 w2+=4
 				end
-			end
+			--end
 		end
 		add(lines,w2)
 		if (w2>w) w=w2
@@ -236,8 +253,8 @@ function draw_panel(panel,horz,vert,fill,outline,centered)
 	if (vert=="b") y=gameh-h-1
 	if (vert=="c") y=gameh/2-h/2
 	if (vert=="m") y=gameh/2+h/3
-	rectfill(x,y,x+w-2,y+h-1,1)
-	rect(x-1,y-1,x+w-1,y+h,13)
+	rectfill(x,y,x+w-2,y+h-1,fill)
+	rect(x-1,y-1,x+w-1,y+h,outline)
 	for i = 1,#panel do
 		local ln=panel[i]
 		local mod=0
