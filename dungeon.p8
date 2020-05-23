@@ -5,7 +5,7 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
-	trace=true
+	trace=false
 	active=false
 	gravity=.2
 	init_enemies()
