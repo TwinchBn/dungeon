@@ -5,7 +5,7 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
-	trace=false
+	trace=true
 	active=false
 	gravity=.2
 	init_enemies()
@@ -198,6 +198,13 @@ function draw_ui()
  if (log) then
  	--draw_panel(log,"r","b",1,8)
  end
+ 
+ if (trace) then
+		if onladder() then
+			spr(83,0,56)
+		end
+ end
+ 
  for i=1,p.keys do
  	spr(93,uk.x+uk.w*(i-1),uk.y)
  end
@@ -385,13 +392,41 @@ end
 
 function move_player()
 	p.tx,p.ty = p.x,p.y
+	
+	if onladder() then
+		climb()
+	else
+		walk()
+	end
+	
+	--[
+	if trymove() then
+		p.x,p.y=p.tx,p.ty
+	else
+		p.tx,p.ty=p.x,p.y
+	end --]]
+
+end --move()
+
+function climb()
+	if btn(2) then
+		p.ty -= p.speed
+		center_on_ladder()
+	elseif btn(3) then
+		p.ty += p.speed
+		center_on_ladder()
+	else
+		walk()
+	end
+end
+
+function walk()
 	local speed=p.speed
 	
-	--tar: 75% speed
+	--tar: 50% speed
 	if (groundis(75)) speed/=2
 	
 	--walking
-		
 	if btn(0) then
 		p.flip=true
 		p.xscale = -1
@@ -405,37 +440,11 @@ function move_player()
 		--p.state=p.anim.walk
 	end
 	
-	--[      climbing
-	if onladder() then
-		if btn(2) then
-			p.ty -= p.speed
-			p.x = flr(p.x/8)*8
-		elseif btn(3) then
-		 p.ty += p.speed
-			p.x = flr(p.x/8)*8
-		end
-	end -- climbing ]]
-	
-	--[
-	if trymove() then
-		p.x,p.y=p.tx,p.ty
-	else
-		p.tx,p.ty=p.x,p.y
-	end --]]
-
-end --move()
+end
 
 
 function set_player_state()
 	--setting animation states
-	--[[
-	if onladder() then
-		if (p.y != p.py) then
-			p.state=p.anim.climb
-		else
-			p.state = p.anim.ladder
-		end
-	--]]
 	if onladder() and (p.y != p.py) then
 			p.state=p.anim.climb
 	elseif (p.x != p.px) then
@@ -461,7 +470,6 @@ function state_collider()
 	p.y2=p.y+p.state.h
 	--p.w=(p.state.w-p.state.x-1) -- *p.xscale
  --p.h=p.state.h-p.state.y-1
- 	
 end --state_collider()
 
 
@@ -483,6 +491,22 @@ function onladder()
 	 return true
 	end
 end --onladder()
+
+function center_on_ladder()
+	local x1,y1,x2,y2 = box(p,true)
+	local ladder_x
+	if mget(x1/8,y1/8) == 83 or
+				mget(x1/8,y2/8) == 83 then
+				ladder_x = x1
+	elseif mget(x2/8,y1/8) == 83 or
+				mget(x2/8,y2/8) == 83 then
+				ladder_x = x2
+	end
+	if not (ladder_x==0) then
+		ladder_x = flr(p.x/8)*8 + 2
+		p.x = ladder_x
+	end
+end --center_on_ladder()
 
 
 function fall()
@@ -586,6 +610,7 @@ function draw_player()
 		--weapon hitbox
 		rect(p.melee.x1,p.melee.y1,p.melee.x2,p.melee.y2,8)
 		end
+		
 		--[[
 		rect(p.x+p.weapon.x*p.xscale,
 					p.y+p.weapon.y,
@@ -822,8 +847,14 @@ function bonk(x,y)
 end --bonk
 
 function hithead()
-	if --bonk(p.tx,p.ty+p.state.y) or
-				bonk(p.tx+p.w/2,p.ty+p.state.y) then
+	--if --bonk(p.tx,p.ty+p.state.y) or
+				--bonk(p.tx+p.w/2,p.ty+p.state.y) then
+	local x1=p.tx
+	local x2=p.tx+p.w
+	local y=p.ty
+	
+	if fget(mget(x1/8,y/8),0)
+		or fget(mget(x2/8,y/8),0)	then
 		return true
 	end
 end --hithead()
@@ -838,7 +869,6 @@ function hitbounds()
 end --hitbounds()
 
 function fallhit()
-
 	local x1=p.tx
 	local x2=p.tx+p.w
 	local y=p.ty+p.h
@@ -882,10 +912,6 @@ function groundis(sp)
  	return true
  end
 end
-
-
-
-
 
 
 --[[
@@ -1158,17 +1184,19 @@ end
 
 --loop through item types
 function update_items()
+	local onx=p.tx+p.w
+	local ony=p.ty+p.y
 	for i=1,#items do
 		local item=items[i]
-		local x,y,t=touching(item.sprite)
-		if t then
+		
+		local x,y,near=near(item.sprite)
+		if mget(onx/8,ony/8)==item.sprite then
+			behavior(onx,ony,item)
+			return
+		elseif near then
 			behavior(x,y,item)
 			return
-		end --if t
-		local x,y,t=near(item.sprite)
-		if t then
-			behavior(x,y,item)
-		end --if t
+		end --if -- [ 
 	end --for loop
 end --update_items()
 
@@ -1377,13 +1405,13 @@ aliens home,music jungle
 ]]
 __gfx__
 00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000666665000000000000000000
-000000000ce0000000000000c000000005c00c0000c00c5000000000c0000000c000000000600000000500000000000004000000000000000000000000000000
-0070070008805000c00000000ce00000050cc000000cc050000000000ce000000ce0000006000000055550000000000000400000000000000400004000000000
-00077000088500000ce0000008805000055885500558855000000000088050000880500060000000555550000000000000400000000000000440044004000000
-00077000022000000880000008850000000880500508800000000000088500000885000000000000666660005555000000400000000000000488884004bbbb00
-007007002002000008850000022000000022205005022200001100c00220000002200000000000000000000065550000040000000000000000181800041b1b00
-00000000000000000220000020020000002002000020020022288c002002000020020000000000000000000006500000400000000000000000b8bb0004bbbb00
-00000000000000002002000020020000000002000020000022288e000002000020000000000000000000000000600000000000000000000000bbbb0004bbbb00
+000000000ce0000000000000c0000000500c0000c005000000000000c0000000c000000000600000000500000000000004000000000000000000000000000000
+0070070008805000c00000000ce000005cc000000cc50000000000000ce000000ce0000006000000055550000000000000400000000000000400004000000000
+00077000088500000ce0000008805000588500005885000000000000088050000880500060000000555550000000000000400000000000000440044004000000
+00077000022000000880000008850000088500005880000000000000088500000885000000000000666660005555000000400000000000000488884004bbbb00
+007007002002000008850000022000002225000052220000001100c00220000002200000000000000000000065550000040000000000000000181800041b1b00
+00000000000000000220000020020000200200002002000022288c002002000020020000000000000000000006500000400000000000000000b8bb0004bbbb00
+00000000000000002002000020020000000200002000000022288e000002000020000000000000000000000000600000000000000000000000bbbb0004bbbb00
 00000000600005000000000000000000000000000000000000000900000000000555000010555000105550001105550000055500e4e4d8d80000000000000000
 60000500600d50c06000050060000500000000000000000000009990000000000c5c000010c5c00010c5c000110c5c00000c5c00444488880000000000000000
 600d50c060122010600d50c0600d50c0005000000000000000000900aa1b1baa0555000056555000565550000605550600055506444488880000000000000000
