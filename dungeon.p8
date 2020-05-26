@@ -1258,6 +1258,7 @@ function update_items()
 
 		if near then
 			behavior(x,y,item)
+			return
 		end --if -- [ 
 	end --loop to see if near
 	
