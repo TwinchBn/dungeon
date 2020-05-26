@@ -330,12 +330,12 @@ function init_player()
 	
  	anim={
  		rate=12,tick=0,fr=0,sp=0,
- 		stand={sp={3},x=0,y=1,w=4,h=8,name="stand"},
-			walk={sp={7,8},x=0,y=1,w=4,h=8,name="walk"},
-			crouch={sp={2},x=0,y=2,w=4,h=8,name="crouch"},
-			jump={sp={1},x=0,y=0,w=4,h=8,name="jump"},
-			climb={sp={4,5},x=1,y=1,w=6,h=8,	name="climb"},
-			ladder={sp={4},x=1,y=1,w=6,h=8,	name="ladder"}
+ 		stand={sp={3},x=0,y=1,w=4,h=7,name="stand"},
+			walk={sp={7,8},x=0,y=1,w=4,h=7,name="walk"},
+			crouch={sp={2},x=0,y=2,w=4,h=7,name="crouch"},
+			jump={sp={1},x=0,y=0,w=4,h=7,name="jump"},
+			climb={sp={4,5},x=1,y=1,w=6,h=7,	name="climb"},
+			ladder={sp={4},x=1,y=1,w=6,h=7,	name="ladder"}
 			}, --end anim
 		--inventory={},
 		w_anim={rate=15,tick=0,fr=0,sp=0,dur=10},
@@ -353,19 +353,20 @@ function update_player()
  jump()
  set_player_state()
  fall()
- player_hitboxes()
  
+ player_hitboxes()
  combat()
 	player_combat()
  
- p.cell=mget(p.x/8,p.y/8)
- p.cx,p.cy=p.x-p.px,p.y-p.py
+ --not sure what these do
+ --p.cell=mget(p.x/8,p.y/8)
+ --p.cx,p.cy=p.x-p.px,p.y-p.py
  p.px,p.py=p.x,p.y
-
 	--animate_player()
+	
 	animate(p.anim,p.state.sp)
 	--log_player()
-	add(log,"p:"..flr(p.x)..","..flr(p.y))
+	--add(log,"p:"..flr(p.x)..","..flr(p.y))
 end
 
 
@@ -381,11 +382,13 @@ end
 
 
 function move_player()
-	--p.tx,p.ty = p.x,p.y
-	--walking
+	p.tx,p.ty = p.x,p.y
 	local speed=p.speed
+	
 	--tar: 75% speed
 	if (groundis(75)) speed/=2
+	
+	--walking
 		
 	if btn(0) then
 		p.flip=true
@@ -409,10 +412,12 @@ function move_player()
 		 p.ty += p.speed
 			p.x = flr(p.x/8)*8
 		end
-	end --]] climbing
+	end -- climbing ]]
 	
 	--[
-	if not trymove() then
+	if trymove() then
+		p.x,p.y=p.tx,p.ty
+	else
 		p.tx,p.ty=p.x,p.y
 	end --]]
 
@@ -421,24 +426,41 @@ end --move()
 
 function set_player_state()
 	--setting animation states
-	if (p.y != p.ty) then
-		p.y = p.ty
-		p.state=p.anim.climb
-	elseif (p.x != p.tx) then	
-		p.x = p.tx
+	--[[
+	if onladder() then
+		if (p.y != p.py) then
+			p.state=p.anim.climb
+		else
+			p.state = p.anim.ladder
+		end
+	--]]
+	if onladder() and (p.y != p.py) then
+			p.state=p.anim.climb
+	elseif (p.x != p.px) then
 		p.state = p.anim.walk
-	elseif btn(3) and not onladder() then
-		p.state=p.anim.crouch
-	elseif onladder() then
-		p.state = p.anim.ladder
+	elseif btn(⬇️) then
+			p.state=p.anim.crouch
 	else
 		p.state = p.anim.stand
 	end
 	
-	p.w=(p.state.w-p.state.x-1) -- *p.xscale
- p.h=p.state.h-p.state.y-1
- 	
+	state_collider()
 end --set_player_state()
+	
+
+function state_collider()
+	-- set collider box (uh, later?)
+	p.x1,p.y1=p.x,p.y
+	
+	p.w=p.state.w
+	p.h=p.state.h
+	
+	p.x2=p.x+p.state.w
+	p.y2=p.y+p.state.h
+	--p.w=(p.state.w-p.state.x-1) -- *p.xscale
+ --p.h=p.state.h-p.state.y-1
+ 	
+end --state_collider()
 
 
 function jump()
@@ -448,32 +470,38 @@ function jump()
 		p.dy=p.jforce
 		p.jumps += 1
 		p.state=p.anim.jump
+		p.gnd=false
 	end
 end --jump()
 
 
 function onladder()
-	if (touching(83)) return true
+	if touching(83) or 
+				groundis(83) then
+	 return true
+	end
 end --onladder()
 
 
 function fall()
-	if (onladder()) return
-	if not p.gnd then
+	if onladder() then
+		return
+	elseif not p.gnd then
 		p.dy+=gravity
 		p.ty+=p.dy
-		if hitground() then
+		if fallhit() then
 			p.jumps=0
 			p.dy=0
 			p.gnd=true
-			p.y=flr(p.y/8)*8+p.state.y
+			p.ty=p.y
+			--p.y=flr(p.y/8)*8+p.state.y
 		elseif hithead() then
 			p.dy=0
 		else
-			p.y+=p.dy
+			p.y=p.ty
 		end
 	else -- if not falling
-		if not hitground() then
+		if not fallhit() then
 			p.gnd=false
 		end
 	end
@@ -514,8 +542,10 @@ end --pbox()
 
 
 function player_hitboxes()
- p.x1 = p.x -- p.state.x
-	p.y1 = p.y-p.state.y
+	--p.w=p.state.w
+	--p.h=p.state.h
+ p.x1 = p.x --p.state.x
+	p.y1 = p.y --p.state.y
 	p.x2 = p.x1 + p.state.w
 	p.y2 = p.y1 + p.state.h
 	
@@ -545,11 +575,15 @@ function draw_player()
 	if trace then
 		--player hitbox
 		rect(p.x1,p.y1,p.x2,p.y2,6)
+		--rect(p.x,p.y,p.x+p.w,p.y+p.h,6)
 		--player x,y
 		rectfill(p.x1,p.y1,p.x1,p.y1,10)
 		rectfill(p.x,p.y,p.x,p.y,9)
+		
+		if p.hitting then
 		--weapon hitbox
-		--rect(p.melee.x1,p.melee.y1,p.melee.x2,p.melee.y2,8)
+		rect(p.melee.x1,p.melee.y1,p.melee.x2,p.melee.y2,8)
+		end
 		--[[
 		rect(p.x+p.weapon.x*p.xscale,
 					p.y+p.weapon.y,
@@ -637,7 +671,8 @@ end
 
 
 function update_enemies()
-	local gx,gy=flr(p.x-gamew/2)/8,flr(p.y-1-gamew/2)/8
+	local gx=flr(p.x/8)-gamew/16
+	local gy=flr(p.y/8)-gameh/16
 	for i=gx,gx+gamew/8 do
 		for j=gy,gy+gameh/8 do
 			if (fget(mget(i,j),7)) wake_enemy(i,j)
@@ -717,8 +752,10 @@ end
 function box(obj,temp) --return box
  local x,y = obj.x,obj.y
  if (temp) x,y=obj.tx,obj.ty
- local x1=x-obj.w/2
- local x2=x+obj.w/2
+ --local x1=x-obj.w/2
+ --local x2=x+obj.w/2
+ local x1=x
+ local x2=x+obj.w
  local y1=y+7-obj.h
  local y2=y+obj.h
  return x1,y1,x2,y2
@@ -796,9 +833,27 @@ function hitbounds()
 	end
 end --hitbounds()
 
+function fallhit()
+
+	local x1=p.tx
+	local x2=p.tx+p.w
+	local y=p.ty+p.h
+	
+	if fget(mget(x1/8,y/8),0)
+		or fget(mget(x2/8,y/8),0)
+		or fget(mget(x1/8,y/8),1)
+		or fget(mget(x2/8,y/8),1) 
+		then
+		return true
+	end
+end
+
 function hitground()
 --one point only
-	if (bonk(p.tx,p.ty+p.h)) return true
+	if bonk(p.tx,p.ty+p.h) or
+				bonk(p.tx+p.w,p.ty+p.h) then
+		return true
+	end
 	
 	--[[
 	local x1,y1,x2,y2 = box(p,true)
@@ -819,7 +874,7 @@ function hitground()
 end --hitground()
 
 function groundis(sp)
- if mget(p.tx/8,p.ty+10/8) == sp then
+ if mget((p.tx+p.w/2)/8,(p.ty+10)/8) == sp then
  	return true
  end
 end
@@ -919,17 +974,9 @@ end
 --]]
 
 function combat()
-	--local x1,y1,x2,y2 = box(p)
-	--local pp = {x=p.x1,y=p.y1,w=p.state.w,h=p.state.h}
-	--[[
-	local pp = {x=x1,y=y1,w=x2-x1,h=y2-y1}
-	local pw = {w=p.weapon.w,
-		x=p.x+p.weapon.x*p.xscale*2,
-		y=p.y+p.weapon.y,h=p.weapon.h}
-	--]]
 	for e in all (enemies) do
-		local ee = {x=e.x,y=e.y,
-		w=e.class.w,h=e.class.h}
+		--local ee = {x=e.x,y=e.y,
+		--w=e.class.w,h=e.class.h}
 		local exy = {x1=e.x,y1=e.y,x2=e.x+e.class.w,y2=e.y+e.class.h}
 		
 		-- enemy hits player
@@ -941,7 +988,8 @@ function combat()
 		end --if e hit p
 	
  	-- player weapon hits enemy
- 		if btnp(❎) and collide_xy(p.melee,exy) then
+ 		if btnp(❎) and 
+ 		collide_xy(p.melee,exy) then
 				hit_enemy(e)
 			end --if btnp(❎)
 		
@@ -981,8 +1029,9 @@ function hit_enemy(e)
 	if e.health <= 0 then
 		del(enemies,e)
 	end --if health<=0
-	e.flipx = e.x<p.x
-	e.x += 4 * sgn(e.x-p.x)
+	flip_enemy(e)
+	--e.flipx = e.x<p.x
+	--e.x += 4 * sgn(e.x-p.x)
 end
 
 --[[
@@ -1010,16 +1059,24 @@ end
 
 function init_items()
 	init_weapons()
+	key={sp=84,bt=🅾️,msg={
+		"🅾️ take key","key taken"},
+		action=key_action}
+	health={sp=94,bt=🅾️,msg={
+		"🅾️ potion","healed","potion"},
+		action=health_action}
+	door={sp=79,bt=🅾️,msg={
+		"🅾️ open door","door opened"},
+	action=door_action}
 end
  
 function update_items()
 		--key
- 	local x,y,t=near(84)
+ 	local x,y,t=near(key.sp)
  	if t then --key
- 			--set_ipanel({"iron key","❎ take"})
- 			set_ipanel({"🅾️ take key"})
- 			if btnp(🅾️) then
- 				set_ipanel({"key taken"})
+ 			set_ipanel({key.msg[1]})
+ 			if btnp(key.bt) then
+ 				set_ipanel({key.msg[2]})
  				p.keys += 1
  				mset(x,y, 0)
  			end
@@ -1028,7 +1085,7 @@ function update_items()
  	--locked door
  	local x,y,t=near(81)
  	if t then --door
- 		if (p.keys>0) then
+ 		if p.keys>0 then
  			set_ipanel({"🅾️ unlock door"})
  			if btnp(🅾️) then
  				set_ipanel({"door unlocked"})
@@ -1041,26 +1098,29 @@ function update_items()
  	end -- locked door
  		
  	-- door
- 	local x,y,t=near(79)
+ 	local x,y,t=near(door.sp)
  	if t then --door
- 			set_ipanel({"🅾️ open door"})
+ 			set_ipanel({door.msg[1]})
  			if btnp(🅾️) or btnp(❎) then
- 				set_ipanel({"door opened"})
+ 				set_ipanel({door.msg[2]})
  				mset(x,y, 80)
  			end
  	end -- door
  	
  	--health potion
- 	local x,y,t=near(94)
- 	if t and p.health<p.maxhealth then --health potion
+ 	local x,y,t=near(health.sp)
+ 	if t then
+ 		if p.health<p.maxhealth then --health potion
  	--set_ipanel({"iron key","❎ take"})
- 	set_ipanel({"🅾️ health potion"})
- 	if btnp(🅾️) then
- 		set_ipanel({"potion taken"})
- 		p.health = p.maxhealth
- 		mset(x,y, 0)
- 	end --keys
- 		
+ 			set_ipanel({health.msg[1]})
+ 			if btnp(🅾️) then
+ 				set_ipanel({health.msg[2]})
+ 				p.health = p.maxhealth
+ 				mset(x,y, 0)
+ 			end
+ 		else
+ 			set_ipanel({health.msg[3]})
+ 		end --keys
  	end
  	
  	--[[
@@ -1070,6 +1130,10 @@ function update_items()
  	--]]
  		
 end --update_items()
+
+function key_action()
+
+end
 
 --[[
 function draw_items()
@@ -1391,7 +1455,7 @@ bbbbbbbbbbbbbbbbbbbbbbbbbb661155111155110000000000000000000000000000000000000000
 00000000dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0000000000
 
 __gff__
-0000000000000000000000000000000080808080008080c080808080808080808000808080808080808080008000808080808000c0c0c080800000800000000001010101010101010101010101000001000100020000000100010101000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000808080808080008080c080808080808080808000808080808080808080008000808080808000c0c0c080800000800080808001010101010101010101010101000001000100020000000100010101000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000048000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1399,7 +1463,7 @@ __map__
 4242424242534242534242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 425858585853424253515e184200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4254000000534242534242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4242424242534242534f00544200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4242424242534242004f00544200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4258585842534242424253424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 420000004f534200004153410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4242424242424200004153410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
