@@ -5,7 +5,7 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
-	trace=true
+	trace=false
 	active=false
 	gravity=.2
 	init_enemies()
@@ -694,6 +694,22 @@ function init_enemies()
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
 			cool=10,hitc=6,hitr=8},
+		{name="green slime",sp=21,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10,hitc=11,hitr=8},
+		{name="holy slime",sp=22,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10,hitc=11,hitr=8},
+		{name="flying slime",sp=23,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10,hitc=11,hitr=8},
+		{name="orange slime",sp=30,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10,hitc=9,hitr=8},
 	}
 	e_hitflash=15
 end
@@ -767,7 +783,7 @@ function draw_enemy(e)
 	end
 	
 	local sprx = e.x
-	if (e.flipx) sprx=e.x-8+e.w
+	if (not e.flipx) sprx=e.x-8+e.w
 	spr(e.sp,sprx,e.y,1,1,e.flipx)
 	if (trace) then
 		rect(e.x,e.y,e.x+e.w,e.y+e.h,8)
@@ -1097,18 +1113,6 @@ function init_items()
 		 end
 	 },
 	 
-	 {name="health",sprite=94,
-		 msg={"heal","healed","health"},
-		 blocked=function()
-			 if (p.health==p.maxhealth) return true
-		 end,
-		 action=function()
-			 p.health += 10
-			 if p.health>p.maxhealth then
-				 p.health = p.maxhealth
-			 end
-		 end
-	 },
 	
 	 {name="door",
 		 sprite=79,newsprite=80,
@@ -1126,7 +1130,28 @@ function init_items()
 		 action=function()
 		 	p.keys -= 1
 		 end
-	 },	 
+	 },
+	 
+	 
+	 {name="health",sprite=94,
+		 msg={"heal","healed","health"},
+		 blocked=function()
+			 if (p.health==p.maxhealth) return true
+		 end,
+		 action=function()
+			 p.health += 10
+			 if p.health>p.maxhealth then
+				 p.health = p.maxhealth
+			 end
+		 end
+	 },
+	 
+	 {name="scroll",sprite=95,
+	 	msg={"scroll","health +5"},
+	 	action=function()
+	 		--double health
+	 		p.maxhealth += 5
+	 	end},
 	 
 	 --runes
 	 {name="chalice rune",sprite=104,
@@ -1375,6 +1400,7 @@ bosses
 
 
 runes
+95  scroll,+10 health
 104 chalic3,doubl3 gold
 105 sword,doubl3 mala strangth
 106 shild,doubl3 dfanc3
@@ -1384,7 +1410,7 @@ runes
 110 slim3,sumon slim3 p3t
 111 bow,doubl3 progtial3 damg3
 
-95  what's that?
+
 120 gold?
 121 pieces of gold?
 
