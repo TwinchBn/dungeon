@@ -337,7 +337,7 @@ function init_player()
  	--frame=0,--current anim frame
  	--sp=3,
  	keys=0,
- 	weapon=weapons.sword, --weapon
+ 	weapon=weapons.bow, --weapon
  	cx=0,cy=0, --change from last frame
 		health=10,maxhealth=10,
 		gold=0,
@@ -611,6 +611,11 @@ function draw_player()
 	spr(p.w_anim.sp,p.melee.spx,
 					p.melee.y1,1,1,p.flip)
 	
+	--arrows
+	for a in all (arrows) do
+		spr(a.sp,a.x,a.y)
+	end
+	
 -- bounding boxes
 	if trace then
 		--player hitbox
@@ -703,11 +708,16 @@ function init_enemies()
 		{name="default",sp=16,
 			health=5,dmg=1,
 			speed=.5,w=8,h=8,
-			cool=10,hitc=6,hitr=8},
+			cool=10,hitc=6,hitr=8,
+			defense=function(this)
+				flip_enemy(this)
+			end},
+			
 		{name="skeleton",sp=24,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
 			cool=10,hitc=6,hitr=8},
+			
 		{name="green slime",sp=21,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
@@ -749,7 +759,13 @@ function wake_enemy(mx,my)
 							health=c.health,
 							speed=-c.speed,
 							flipx=c.flipx,cool=0,
-							hitflash=0,class=c}
+							hitflash=0,class=c
+							}
+	if c.defense then
+		e.defense=c.defense
+	else
+		e.defense=enemy_classes[1].defense
+	end
 	add(enemies,e)
 	mset(mx,my,0)
 end
@@ -1013,17 +1029,22 @@ function init_weapons()
 			x=4,y=1,w=4,h=7,dur=0,
 			name="unarmed",
 			sp={15}},
-		sword={dmg=2,t=5,r=4,
+			
+		sword={
+			name="sword",dmg=2,t=5,r=4,
 			x=4,y=0,w=4,h=7,dur=10,
-			action=sword_attack,
-			name="sword",
-			sp={9,10,11}},
-		bow={dmg=1,t=5,r=4,
+			sp={9,10,11},
+			action=sword_attack},
+			
+		bow={
+			name="bow",dmg=1,t=5,r=4,
 			x=4,y=0,w=4,h=7,dur=5,
-			action=bow_attack,
-			name="bow",
-			sp={12}}
+			arrow_speed=3,
+			sp={12},
+			action=bow_attack}
 		} 
+		
+		arrows={}
 end
 
 --[[
@@ -1051,11 +1072,13 @@ function combat()
 			e.cool = e.class.cool
 		end --if e hit p
 	
+	
  	-- player weapon hits enemy
- 		if btnp(❎) and 
+ 		if btnp(❎) and p.weapon.name=="sword" and
  		collide_xy(p.melee,exy) then
-				hit_enemy(e)
+				damage_enemy(e,p.weapon.dmg)
 			end --if btnp(❎)
+		
 		
 		if (p.health<=0) then
 			p.dead=true
@@ -1066,6 +1089,8 @@ end
 
 
 function player_combat()
+	foreach(arrows,update_arrow)
+	
  if p.hitting then
 		animate(p.w_anim,p.weapon.sp)
 		if p.w_anim.tick>p.w_anim.dur then
@@ -1074,31 +1099,47 @@ function player_combat()
 	else --if not p.hitting
 		if btnp(❎) then
 			p.w_anim.tick=1
-			p.weapon.action()
+			p.weapon:action()
  		--p.hitting=true
  	end
 		p.w_anim.sp=p.weapon.sp[1]	
 	end --p.hitting
 end --player_combat
 
-function sword_attack()
+function sword_attack(self)
  p.hitting=true
 end
 
-function bow_attack()
-	
+function bow_attack(self)
+	local a={sp=13,w=4,h=1,dmg=1,
+		x=p.melee.spx,y=p.y+4,
+		dx=self.arrow_speed * p.xscale}
+	add(arrows,a)
 end
 
+function update_arrow(a)
+	a.x+=a.dx
+	a.x1,a.x2=a.x,a.x+a.w
+	a.y1,a.y2=a.y,a.y+a.h
+	if a.x<0 or a.x>128*8 or
+		fget(mget(a.x/8,a.y/8),0)  then
+	 del(arrows,a)
+	end --if
+	for e in all (enemies) do
+		local exy = {x1=e.x,y1=e.y,x2=e.x+e.class.w,y2=e.y+e.class.h}
+		if collide_xy(a,exy) then
+			damage_enemy(e,a.dmg)
+			del(arrows,a)
+		end --if collide
+	end --for
+end --update arrows
 
-function hit_enemy(e)
-	e.health -= p.weapon.dmg
+
+function damage_enemy(e,dmg)
 	e.hitflash=e_hitflash
-	if e.health <= 0 then
-		del(enemies,e)
-	end --if health<=0
-	flip_enemy(e)
-	--e.flipx = e.x<p.x
-	--e.x += 4 * sgn(e.x-p.x)
+	e.health -= dmg
+	if (e.health<=0) del(enemies,e)
+	e:defense() --self
 end
 
 --[[
@@ -1470,14 +1511,14 @@ aliens home,music jungle
 
 ]]
 __gfx__
-00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000666665000000000000000000
-000000000ce0000000000000c0000000500c0000c005000000000000c0000000c000000000600000000500000000000004000000000000000000000000000000
-0070070008805000c00000000ce000005cc000000cc50000000000000ce000000ce0000006000000055550000000000000400000000000004000040000000000
+00000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000666665000000000000000000
+000000000ce0000000000000c0000000500c0000c005000000000000c0000000c000000000600000000500000000000040000000000000000000000000000000
+0070070008805000c00000000ce000005cc000000cc50000000000000ce000000ce0000006000000055550000000000004000000000000004000040000000000
 00077000088500000ce0000008805000588500005885000000000000088050000880500060000000555550000000000000400000000000004400440040000000
 0007700002200000088000000885000008850000588000000000000008850000088500000000000066666000555500000040000000000000488884004bbbb000
-007007002002000008850000022000002225000052220000001100c0022000000220000000000000000000006555000004000000000000000181800041b1b000
-00000000000000000220000020020000200200002002000022288c00200200002002000000000000000000000650000040000000000000000b8bb0004bbbb000
-00000000000000002002000020020000000200002000000022288e00000200002000000000000000000000000060000000000000000000000bbbb0004bbbb000
+007007002002000008850000022000002225000052220000001100c0022000000220000000000000000000006555000000400000000000000181800041b1b000
+00000000000000000220000020020000200200002002000022288c00200200002002000000000000000000000650000004000000000000000b8bb0004bbbb000
+00000000000000002002000020020000000200002000000022288e00000200002000000000000000000000000060000040000000000000000bbbb0004bbbb000
 00000000600005000000000000000000000000000000000009000000000000000555000010555000105550001105550000055500e4e4d8d80000000000000000
 60000500600d50c06000050060000500000000000000000099900000000000000c5c000010c5c00010c5c000110c5c00000c5c00444488880000000000000000
 600d50c060122010600d50c0600d50c0005000000000000009000000aa1b1baa0555000056555000565550000605550600055506444488880000000000000000
