@@ -322,7 +322,7 @@ function init_player()
 	p={     --attributes
 		x=8,y=48,--pos
 		speed=2,--walk speed
-		jforce=-2.25,--jump force
+		jforce=-2.5,--jump force
 		jumps=0,maxjumps=1,--jumps
 		framerate=12,
 		
@@ -744,6 +744,10 @@ function init_enemies()
 			speed=.5,w=5,h=8,
 			cool=10,hitc=11,hitr=8},
 		{name="orange slime",sp=30,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10,hitc=9,hitr=8},
+		{name="zombie",sp=40,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
 			cool=10,hitc=9,hitr=8},
