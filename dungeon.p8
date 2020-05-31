@@ -850,6 +850,20 @@ function init_enemies()
 			},
 			
 		--alien home
+		{name="alien",sp=38,
+			health=10,dmg=5,
+			speed=.5,w=8,h=8,
+			cool=10,
+			flash=colormap.red
+			},
+			
+		{name="alien worm",sp=38,
+			health=10,dmg=5,
+			speed=.5,w=8,h=8,
+			cool=10,
+			flash=colormap.red
+			},
+			
 		{name="alien dragon",sp=50,
 			health=15,dmg=5,
 			speed=.5,w=8,h=8,
@@ -1019,11 +1033,12 @@ end
 
 function init_boss(e)
 	add(bosses,e)
-	local j=e.y/8-1
 	for i=e.x/8-5,e.x/8+5 do
-		local sp=mget(i,j)
-		if (sp==78) e.entrance={i,j}
-		if (sp==77) e.exit={i,j}
+		for j=e.y/8-1,e.y/8 do
+			local sp=mget(i,j)
+			if (sp==78) e.entrance={i,j}
+			if (sp==77) e.exit={i,j}
+		end --for j
 	end --for i
 end
 
@@ -1046,6 +1061,7 @@ function opendoors(e)
 	mset(e.entrance[1],e.entrance[2],78)
  	mset(e.exit[1],e.exit[2],78)
 end 
+
 --enemy states
 function	state_patrol(e)
 	e.tx = e.x+e.speed
