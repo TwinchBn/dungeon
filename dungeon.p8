@@ -716,43 +716,99 @@ end
 --enemies
 
 function init_enemies()
+
+	colormap={
+		gray={6,8},
+		green={11,8},
+		orange={9,8},
+		white={7,8},
+		red={8,14},
+	}
+	
 	enemies={}
+	bosses={}
 	enemy_classes={
 		{name="default",sp=16,
 			health=5,dmg=1,
 			speed=.5,w=8,h=8,
-			cool=10,hitc=6,hitr=8,
-			defense=function(this)
-				flip_enemy(this)
-			end},
+			cool=10,
+			flash=colormap.gray,
+			--hitc=6,hitr=8,
+			state=state_patrol,
+			defense=enemy_defend},
 			
 		{name="skeleton",sp=24,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
-			cool=10,hitc=6,hitr=8},
+			cool=10},
+			
+		{name="mage skeleton",sp=25,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10},
+			
+		{name="warrior skeleton",sp=26,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10},
+			
+		{name="bomb skeleton",sp=27,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10},
+			
+		{name="lich boss",sp=42,
+			health=10,dmg=5,
+			speed=.8,w=8,h=8,
+			cool=10,
+			deathsp=43,
+			boss=true},
 			
 		{name="green slime",sp=21,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
-			cool=10,hitc=11,hitr=8},
+			cool=10,
+			flash=colormap.green},
+			
 		{name="holy slime",sp=22,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
-			cool=10,hitc=11,hitr=8},
+			cool=10,
+			flash=colormap.green},
+			
 		{name="flying slime",sp=23,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
-			cool=10,hitc=11,hitr=8},
+			cool=10,
+			flash=colormap.green},
+			
 		{name="orange slime",sp=30,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
-			cool=10,hitc=9,hitr=8},
+			cool=10,
+			flash=colormap.orange},
+			
+		{name="red slime",sp=31,
+			health=3,dmg=2,
+			speed=.5,w=5,h=8,
+			cool=10,
+			flash=colormap.red},
+			
 		{name="zombie",sp=40,
 			health=3,dmg=2,
 			speed=.5,w=5,h=8,
-			cool=10,hitc=9,hitr=8},
+			cool=10,
+			flash=colormap.green},
+			
+		{name="frost troll",sp=39,
+			health=6,dmg=5,
+			speed=.5,w=7,h=6,
+			cool=10,
+			flash=colormap.white},
+		
 	}
-	e_hitflash=15
+	--e_hitflash=15
+
 end
 
 
@@ -771,19 +827,29 @@ end
 function wake_enemy(mx,my)
 	local sp=mget(mx,my)
 	local c=getclass(sp)
-	local e={x=mx*8,y=my*8,tx=mx*8,ty=my*8,
-							sp=sp,w=c.w,h=c.h,
+	local d=enemy_classes[1] --default
+	local e={sp=sp,
+							x=mx*8,  y=my*8,
+							tx=mx*8, ty=my*8,
+							w=c.w,   h=c.h,
 							health=c.health,
-							speed=-c.speed,
-							flipx=c.flipx,cool=0,
-							hitflash=0,class=c
+							flipx=c.flipx,
+							speed=c.speed * flipfactor(c.flipx),
+							hitflash=0,class=c,
+							cool=c.cool,
+							defense=c.defense,
+							state=c.state,
+							flash=c.flash,
+							deathsp=c.deathsp,
+							boss=c.boss,
 							}
-	if c.defense then
-		e.defense=c.defense
-	else
-		e.defense=enemy_classes[1].defense
-	end
+	if (e.defense==nil)	e.defense=d.defense
+	if (e.state==nil) e.state=d.state
+	if (e.flash==nil) e.flash=d.flash
+	if (e.cool==nil) e.cool=d.cool
+
 	add(enemies,e)
+	if (e.boss) init_boss(e)
 	mset(mx,my,0)
 end
 
@@ -798,18 +864,8 @@ end
 
 function update_enemy(e)
 	--sleep if offscreen+full health
-	
-	--if not hitting wall, move
-	--local d = 1
-	--if (e.flipx) d=-1  --direction
-	e.tx = e.x+e.speed
-	if bonk(e.tx+4,e.ty) or 
-		e.tx<0 or e.tx>128*8 then
-		e.tx = e.x
-		flip_enemy(e)
-	else
-		e.x = e.tx
-	end
+	if (e.boss) update_boss(e)
+	e.state(e)
 	
 	if e.hitflash>0 then
 		e.hitflash -=1
@@ -818,15 +874,72 @@ function update_enemy(e)
 	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
 end
 
+function init_boss(e)
+	add(bosses,e)
+	local y=flr(e.y/8)-1
+	for i=flr(e.x/8)-5,flr(e.x/8)+5 do
+		local sp=mget(i,y)
+		if (sp==78) e.entrance={i,y}
+		if (sp==77) e.exit={i,y}
+	end --for i
+end
+
+function update_boss(e)
+	if e.entrance then
+		local ddist = abs(e.x-e.entrance[1]*8-1)
+		local pdist = abs(e.x-p.x)
+		--if e.entrance[1]*8+1 < p.x then
+		if (ddist>pdist)	closedoor(e)
+		--end --if
+	end --if
+end
+
+function closedoor(e)
+	mset(e.entrance[1],e.entrance[2],77)
+	del(e,e.entrance)
+end
+
+function opendoor(e)
+	mset(e.exit[1],e.exit[2],78)
+end
+
+--enemy states
+function	state_patrol(e)
+	e.tx = e.x+e.speed
+	if bonk(e.tx+4,e.ty) or 
+		e.tx<0 or e.tx>128*8 then
+		e.tx = e.x
+		flip_enemy(e)
+	else
+		e.x = e.tx
+	end
+end
+
+function enemy_defend(e,dmg)
+	flip_enemy(e)
+	e.hitflash=15 --e.cool
+	e.health -= dmg
+	if (e.health<=0) then
+		if (e.deathsp) mset(e.x/8,e.y/8,e.deathsp)
+		if (e.boss) opendoor(e)
+		del(enemies,e)
+	end
+end
+
 function flip_enemy(e)
 		e.flipx = not e.flipx
 		e.speed *= -1
 end
 
+function flipfactor(flipx)
+		if (flipx) return 1
+		return -1
+end
+
 function draw_enemy(e)
 	--flash enemy if damaged
 	if e.hitflash>0 then
-		pal(e.class.hitc,e.class.hitr)
+		pal(e.flash[1],e.flash[2])
 	end
 	
 	local sprx = e.x
@@ -1083,6 +1196,7 @@ function combat()
 		
 		if (e.x-p.x)^2+(e.y-p.y)^2 < 240 then
 			set_ipanel({e.class.name})
+			--if (e.boss) closedoor(e)
 		end
 		
 		-- enemy hits player
@@ -1099,7 +1213,8 @@ function combat()
  		(p.weapon.name=="sword" or
  			p.weapon.name=="fist") and
  		collide_xy(p.melee,exy) then
-				damage_enemy(e,p.weapon.dmg)
+				--damage_enemy(e,p.weapon.dmg)
+				e:defense(p.weapon.dmg)
 			end --if btnp(❎)
 		
 		
@@ -1157,19 +1272,12 @@ function update_arrow(a)
 	for e in all (enemies) do
 		local exy = {x1=e.x,y1=e.y,x2=e.x+e.class.w,y2=e.y+e.class.h}
 		if collide_xy(a,exy) then
-			damage_enemy(e,a.dmg)
+			e:defense(a.dmg)
 			del(arrows,a)
 		end --if collide
 	end --for
 end --update arrows
 
-
-function damage_enemy(e,dmg)
-	e.hitflash=e_hitflash
-	e.health -= dmg
-	if (e.health<=0) del(enemies,e)
-	e:defense() --self
-end
 
 --[[
 function attack(e)
@@ -1511,23 +1619,24 @@ end --make_items
 sprite, name, damage, health
 
 enemies
+14 barbarian slime
+15 
+21 green slime
 24 skeleton dmg=2,health=3
 25 skeleton
 26 shield skeleton
-27
+27 bomb skeleton
 28
-29 slime boss
 30 orange slime
 31 red slime
-21 green slime
+39 frost dwarf - white
 47 brown slime
-14 barbarian slime
-15 
 61 wizard slime
 62 warrior slime
 63 rogue slime
 
 bosses
+29 slime boss
 32 snake boss
 34 worm boss
 37
@@ -1833,7 +1942,7 @@ bbbbbbbbbbbbbbbbbbbbbbbbbb661155111155110000000000000000000000000000000000000000
 00000000dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0000000000
 
 __gff__
-0000000000000000000000000000808080808080008080c080808080808080808000808080808080808080008000808080808000c0c0c080800000800080808001010101010101010101010101000001000100020000000100010101000000000000000000000002000000000000000000000000000000000000000000000000
+0000000000000000000000000000808080808080008080c080808080808080808000808080808080808080008000808080808000c0c0c080800000800080808001010101010101010101010101010001000100020000000100010101000000000000000000000002000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000048000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1862,7 +1971,7 @@ __map__
 0042000000000000424242424242424200004253420000425342000000000000000000004c53534c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0042424242424040000000000000000041004253420000425342000000000000000000004c53534c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000040000000000000000041004253420000425342000000000000000000004c53534c000000004c4c4c004c4c4c4c4c4c4c58000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-5f5e5e5e5f00004d00000000000000004d00425342424242534200000000004c4c4c4c4c4c53534c4c4c4c4c00004c4000000000000000404c4c4c000000000000000000000000000048000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+5f5e5e5e5f00004e00000000000000004d00425342424242534200000000004c4c4c4c4c4c53534c4c4c4c4c00004c4000000000000000404c4c4c000000000000000000000000000048000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4242424242424040000000002a0000004100006a4f5e5e5f534200000000004c530000004f00004f005f5e5e5e5e514d000000000000004d5e004c000000000000000000000000004800480000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000000000042424242424242420042424242424242424200000000004c534c4c4c4c4b4b4b4b4c4c4c4b4b4b4000000020000000404c534c0000000000000000000000004800005e4800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000000000000000000000004c534c000000000000000000004c4c4c00434c4c4b4c4c43004c534c00000000000000000000004800005e480048000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
