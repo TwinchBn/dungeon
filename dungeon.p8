@@ -5,7 +5,8 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
-	reload(0x2000, 0x2000, 0x1000)		
+	reload(0x2000, 0x2000, 0x1000)
+	poke(0x5f5c, 255)	--btnp fix	
 	trace=false
 	sound=false
 	active=false
@@ -46,6 +47,7 @@ end --_draw()
 --------------------
 -----  buttons  ----
 --------------------
+--[[
 function btnu(b)
 	if b==⬆️ or b==🅾️ then
 		if not btn(b) and p.⬆️ then
@@ -63,7 +65,7 @@ function btnd(b)
 		end
 	end
 end --btnd
-
+--]]
 
 --------------------
 -----  utility  ----
@@ -172,6 +174,7 @@ function init_ui()
 	uh={x=0,y=0,w=10,h=0,cb=8,cf=11} --health
 	ug={x=0,y=1,w=10,h=0,cf=9}--gold
 	uk={x=0,y=2,w=6,h=3} --keys
+	ur={x=0,y=6,h=4} --runes
 end --make_ui()
 
 function update_ui()
@@ -197,6 +200,7 @@ function draw_ui()
 		keys_ui()
  	healthbar()
  	goldbar()
+ 	draw_runes()
 		if (ipanel) draw_panel(ipanel,"c","b",1,8,true)
  	if (log) draw_panel(log,"l","t",1,8)
  	if (trace and onladder()) spr(83,0,56) 
@@ -231,6 +235,18 @@ function goldbar()
  	rectfill(ug.x,ug.y,ug.x+p.gold,ug.y+ug.h,ug.cf)
 	end
 end
+
+function draw_runes()
+	for i=1,#p.runes do
+		spr(p.runes[i],0,64-8*i)
+		--[[
+		local x=(p.runes[i]-96)*8
+		local y=49
+		sspr(x,y,7,7,ur.x,ur.h*i,4,4)
+		--]]
+	end
+end
+
 
 function draw_panel(panel,horz,vert,fill,outline,centered,gap)
 	local x,y,w,h = 0,0,0,0
@@ -276,9 +292,10 @@ function draw_panel(panel,horz,vert,fill,outline,centered,gap)
 	end --for
 end
 
+
+
 function title_screen()
-	--[
-	if (btn(🅾️)) return
+	--if (btn(🅾️)) return
 	
 	local x,y=1,2
 	
@@ -340,8 +357,7 @@ function title_screen()
 	rectfill(x+1,y+14,x+2,y+15,7)
 	rectfill(x+2,y+15,x+3,y+16,7)
 
-	--]]
-	draw_panel({"BY tWINCHbEN",
+	draw_panel({"BY tWINCHbN",
 								"+ jEFFU wARMOUTH"},
 									"c","m",0,0,true,1)
 	draw_panel(spanel,
@@ -349,6 +365,7 @@ function title_screen()
  		
 end
 
+--[[
 function lowercase(s)
 	local d=""
 	local c=true
@@ -363,6 +380,7 @@ function lowercase(s)
 	end-- for i
 	return d
 end
+--]]
 
 --[[
 function debug()
@@ -397,6 +415,8 @@ function init_player()
 		dy=0,--for gravity
  	gnd=false,--on ground?
  	xscale=1,flip=false,--flip
+ 	--hitflash=0,
+ 	flash=colormap.pink,
  	--count=0,--current game frame
  	--frame=0,--current anim frame
  	--sp=3,
@@ -405,7 +425,6 @@ function init_player()
  	cx=0,cy=0, --change from last frame
 		health=10,maxhealth=10,
 		gold=0,
-		dead=false,
 		x1=0,x2=0,y1=0,y2=0,spx=0,
 		melee={x1=0,x2=0,y1=0,y2=0,spx=0},
 	
@@ -419,8 +438,15 @@ function init_player()
 			ladder={sp={4},x=1,y=1,w=4,h=7,	name="ladder"}
 			}, --end anim
 		--inventory={},
-		w_anim={rate=15,tick=0,fr=0,sp=0,dur=10},
-		weapons={},hitting=false
+		w_anim={rate=15,tick=0,fr=0,sp=0},
+		weapons={},
+		runes={},
+		die=function()
+			p.dead=true
+			active=false
+		end,
+		defend=function()
+		end
 	} --end p
 	p.state=p.anim.stand
 	p.tx,p.ty=p.x,p.y
@@ -429,7 +455,7 @@ function init_player()
 end
 
 function update_player()
-	btnu(⬆️)
+	--btnu(⬆️)
  move_player() --walk,climb,crouch
  jump()
  fall()
@@ -437,7 +463,6 @@ function update_player()
  --fall()
  
  player_hitboxes()
- combat()
 	player_combat()
  
  --not sure what these do
@@ -447,6 +472,8 @@ function update_player()
 	--animate_player()
 	
 	animate(p.anim,p.state.sp)
+	update_flash(p)
+	
 	--log_player()
 	if trace then
 		add(log,"p:"..p.x..","..p.y)
@@ -550,7 +577,7 @@ end --state_collider()
 
 function jump()
 	if (onladder()) return
-	if btnd(⬆️) and
+	if btnp(⬆️) and
 				p.jumps<p.maxjumps then
 		p.dy=p.jforce
 		p.jumps += 1
@@ -613,7 +640,7 @@ end --fall()
 
 
 function trymove()
- 	local hit = hitground() 
+ 	local hit = hitground(p) 
  		or	hithead() 
  		or hitbounds()
  	return not hit
@@ -661,15 +688,18 @@ function player_hitboxes()
  p.spx = p.x1
  p.melee.spx = p.melee.x1
 	if p.flip then
-		p.spx -= (8-p.state.w)
-		p.melee.spx -= p.weapon.w
+		p.spx -= (7-p.state.w)
+		p.melee.spx -= p.weapon.w - 1
 	end
 end
  
 
 function draw_player()
+
 	--player sprite
+	draw_flash(p)
 	spr(p.anim.sp,p.spx,p.y1,1,1,p.flip)
+	pal()
 	
 	--weapon
 	spr(p.w_anim.sp,p.melee.spx,
@@ -684,13 +714,15 @@ function draw_player()
 	--arrows
 	for a in all (arrows) do
 		--spr(a.sp,a.x,a.y)
+		--[[
 		 pset(a.x,a.y,5)
 		for i=a.x+1,a.x+a.w-1 do
 			pset(i,a.y,6)
 		end
 			pset(a.x+a.w,a.y,5)
-		--rectfill(a.x,a.y,a.x+a.w,a.y,6)
-		
+			--]]
+		rectfill(a.x,a.y,a.x+a.w,a.y,a.colors[1])
+		pset((a.x+a.w/2)+a.w/2*sgn(a.dx),a.y,a.colors[2])	
 	end
 	
 -- bounding boxes
@@ -786,10 +818,12 @@ function init_enemies()
 	colormap={
 		gray={6,8},
 		green={11,8},
+		brown={4,8},
 		orange={9,8},
 		white={7,8},
 		red={8,5},
 		blue={12,8},
+		pink={8,13},
 	}
 	
 	enemy_classes={
@@ -799,52 +833,62 @@ function init_enemies()
 			cool=10,
 			flash=colormap.gray,
 			state=state_patrol,
-			defense=enemy_defend},
+			defend=enemy_defend,
+			die=enemy_die},
 			
 		{name="skeleton",sp=24,
-			health=3,dmg=2,
-			speed=.5,w=4,h=7,
+			health=4,dmg=3,
+			speed=.6,w=4,h=7,
 			cool=10},
 			
 		{name="sword skeleton",sp=25,
-			health=3,dmg=2,
-			speed=.5,w=5,h=8,
+			health=5,dmg=4,
+			speed=.6,w=5,h=8,
 			cool=10},
 			
 		{name="warrior skeleton",sp=26,
-			health=3,dmg=2,
-			speed=.5,w=5,h=8,
+			health=8,dmg=4,
+			speed=.4,w=6,h=8,
 			cool=10},
 			
 		{name="bomb skeleton",sp=27,
-			health=3,dmg=2,
-			speed=.5,w=5,h=8,
+			health=5,dmg=2,
+			speed=.5,w=7,h=8,
 			cool=10},
 			
-		{name="cyclops",sp=42,
-			health=10,dmg=5,
-			speed=.8,w=8,h=8,
-			cool=10,
-			deathsp=43,
-			},
-			
-		{name="black worm",sp=34,
-			health=5,dmg=3,
-			speed=.5,w=8,h=8,
-			cool=10,
-			},
-			
-		{name="turret worm",sp=46,
-			health=5,dmg=3,
-			speed=.5,w=8,h=8,
-			cool=10,
-			},
-			
 		{name="zombie",sp=40,
-			health=3,dmg=2,
-			speed=.5,w=5,h=8,
+			health=6,dmg=5,
+			speed=.4,w=5,h=8,
 			cool=10,
 			flash=colormap.green},
+			
+		{name="cyclops",sp=42,
+			health=15,dmg=8,
+			speed=.75,w=7,h=8,
+			cool=10,
+			deathsp=43,
+			drops={9,10}
+			},
+			
+		--outside
+		{name="dirty worm",sp=32,
+			health=25,dmg=12,
+			speed=.8,w=8,h=8,
+			cool=30,
+			deathsp=33,
+			drops={1,6}
+			},
+			
+		--underground beach
+		{name="sand man",sp=59,
+			health=30,dmg=15,
+			speed=.4,w=8,h=8,
+			cool=30,
+			deathsp=60,
+			drops={1,8},
+			flash=colormap.orange
+			},
+		
 			
 		--snowy biome
 		{name="snowy dwarf",sp=39,
@@ -859,21 +903,18 @@ function init_enemies()
 			cool=10,
 			flash=colormap.blue},
 			
+		{name="turret worm",sp=46,
+			health=5,dmg=3,
+			speed=.5,w=8,h=8,
+			cool=10,
+			},
+			
 		{name="snow dwarf king",sp=44,
 			health=15,dmg=5,
 			speed=.5,w=8,h=8,
 			cool=10,
 			deathsp=45,
 			flash=colormap.gray
-			},
-			
-		--underground beach
-		{name="sand man",sp=59,
-			health=15,dmg=5,
-			speed=.5,w=8,h=8,
-			cool=10,
-			deathsp=60,
-			flash=colormap.orange
 			},
 			
 		--music jungle
@@ -935,29 +976,51 @@ function init_enemies()
 			deathsp=51,
 			flash=colormap.red
 			},
+			
+		
+		--unmentionable biome
+		{name="black worm",sp=34,
+			health=5,dmg=3,
+			speed=.5,w=8,h=8,
+			cool=10,
+			},
 		
 		--slimes
-		{name="green slime",sp=21,
-			health=3,dmg=2,
-			speed=.5,w=5,h=8,
-			cool=10,
-			flash=colormap.green},
 			
-		{name="holy slime",sp=22,
-			health=3,dmg=2,
+		{name="slime pack",sp=29,
+			health=10,dmg=6,
+			speed=.2,w=8,h=8,
+			cool=10,
+			flash=colormap.green
+			},
+		
+		{name="green slime",sp=21,
+			health=8,dmg=3,
 			speed=.5,w=5,h=8,
 			cool=10,
 			flash=colormap.green},
 			
 		{name="flying slime",sp=23,
-			health=3,dmg=2,
-			speed=.5,w=5,h=8,
+			health=8,dmg=4,
+			speed=.7,w=5,h=8,
 			cool=10,
 			flash=colormap.green},
 			
-		{name="orange slime",sp=30,
-			health=3,dmg=2,
+		{name="holy slime",sp=22,
+			health=12,dmg=5,
+			speed=.6,w=5,h=8,
+			cool=10,
+			flash=colormap.green},
+			
+		{name="brown slime",sp=47,
+			health=10,dmg=5,
 			speed=.5,w=5,h=8,
+			cool=10,
+			flash=colormap.brown},
+			
+		{name="orange slime",sp=30,
+			health=12,dmg=6,
+			speed=.6,w=5,h=8,
 			cool=10,
 			flash=colormap.orange},
 			
@@ -1002,13 +1065,6 @@ function init_enemies()
 			speed=.5,w=5,h=8,
 			cool=10,
 			flash=colormap.green},
-			
-		{name="slime pack",sp=29,
-			health=10,dmg=5,
-			speed=.5,w=8,h=8,
-			cool=10,
-			flash=colormap.green
-			},
 		
 	}
 	--e_hitflash=15
@@ -1040,18 +1096,21 @@ function wake_enemy(mx,my)
 							health=c.health,
 							flipx=c.flipx,
 							speed=c.speed * flipfactor(c.flipx),
-							hitflash=0,class=c,
+							--hitflash=0,
+							class=c,
 							cool=c.cool,
-							defense=c.defense,
+							defend=c.defend,
 							state=c.state,
 							flash=c.flash,
 							deathsp=c.deathsp,
+							drops=c.drops,
 							}
 	if (fget(sp,6)) e.boss=true
-	if (e.defense==nil)	e.defense=d.defense
+	if (e.defend==nil)	e.defend=d.defend
 	if (e.state==nil) e.state=d.state
 	if (e.flash==nil) e.flash=d.flash
 	if (e.cool==nil) e.cool=d.cool
+	if (e.die==nil) e.die=enemy_die
 
 	add(enemies,e)
 	if (e.boss) init_boss(e)
@@ -1068,6 +1127,8 @@ end
 
 
 function update_enemy(e)
+	enemy_label(e)
+	
 	if e.boss then
 		update_boss(e)
 	else
@@ -1075,13 +1136,21 @@ function update_enemy(e)
 	end --if
 	
 	e.state(e)
+	--enemy_collide(e)
 	
-	if e.hitflash and e.hitflash>0 then
-		e.hitflash -=1
-	end
+	update_flash(e)
 	
+	combat(e)
 	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
 end
+
+function enemy_label(e)
+		if (e.x-p.x)^2+(e.y-p.y)^2 < 240 then
+			set_ipanel({e.class.name})
+			--if (e.boss) closedoor(e)
+		end
+end
+
 
 function check_sleep(e)
 	--sleep if offscreen+full health
@@ -1147,15 +1216,27 @@ function	state_patrol(e)
 	--]]
 end
 
-function enemy_defend(e,dmg)
+function enemy_defend(e)
 	flip_enemy(e)
-	e.hitflash=15 --e.cool
-	e.health -= dmg
-	if (e.health<=0) then
-		if (e.deathsp) mset(e.x/8,e.y/8,e.deathsp)
-		if (e.boss) opendoors(e)
-		del(enemies,e)
+end
+
+function enemy_die(e)
+	if (e.deathsp) mset(e.x/8,e.y/8,e.deathsp)
+	if (e.boss) opendoors(e)
+	if (e.drops) drop_loot(e)
+	del(enemies,e)
+end
+
+function drop_loot(e)
+	--[
+	local xlocs={}
+	for i=e.x/8-1,e.x/8+1,2 do
+		if (not fget(mget(i,e.y/8),0)) add(xlocs,i)
 	end
+	if (#xlocs==0) add(xlocs,e.x/8)
+	mset(rnd(xlocs),e.y/8,items[rnd(e.drops)].sprite)
+	--]]
+	--mset(e.x/8,e.y/8,items[rnd(e.drops)].sprite)
 end
 
 function flip_enemy(e)
@@ -1169,19 +1250,16 @@ function flipfactor(flipx)
 end
 
 function draw_enemy(e)
-	--flash enemy if damaged
-	if e.hitflash>0 then
-		pal(e.flash[1],e.flash[2])
-	end
-	
+	draw_flash(e)
 	local sprx = e.x
 	if (e.flipx) sprx=e.x-7+e.w
 	spr(e.sp,sprx,e.y,1,1,e.flipx)
+	pal()
+	
 	if (trace) then
 		rect(e.x,e.y,e.x+e.w,e.y+e.h,8)
 		rectfill(e.x,e.y,e.x,e.y,9)
 	end
-	pal()
 end
 -->8
 --collision
@@ -1197,7 +1275,6 @@ function box(obj,temp) --return box
  local y2=y+obj.h
  return x1,y1,x2,y2
 end --box()
-
 
 function collide(a,b)
  if a.x+a.w>b.x and
@@ -1231,6 +1308,7 @@ function touching(sp)
 	end
 end --touching()
 
+
 function near(sp)
 	--local x,y = flr(p.x/8),flr(p.y/8)
 	local ym = flr(p.y/8)
@@ -1241,9 +1319,6 @@ function near(sp)
 			return xm,ym,true
 		end
 	end
-	--if (mget(x,y) == sp) return x,y,true
-	--if (mget(x-1,y) == sp) return x-1,y,true
-	--if (mget(x+1,y) == sp) return x+1,y,true
 end --near()
 
 
@@ -1252,7 +1327,7 @@ function bonk(x,y,enemy)
  --add(log,"bonk: "..x..","..y)
  --add(log,"bonk: "..x..","..y)
  if (fget(mget(x/8,y/8),0)) return true
- if (enemy and	fget(mget(x/8,y/8),2))	return true 
+ if (enemy and fget(mget(x/8,y/8),2))	return true
 end --bonk
 
 function hithead()
@@ -1291,14 +1366,22 @@ function fallhit()
 	end
 end
 
-function hitground()
+function hitground(o)
 --one point only
-	if bonk(p.tx,p.ty+p.h) or
-				bonk(p.tx+p.w,p.ty+p.h) then
+	if bonk(o.tx,o.ty+o.h) or
+				bonk(o.tx+o.w,o.ty+o.h) then
 		return true
 	end
-	
+end --hitground()
+
+function groundis(sp)
+ if mget((p.tx+p.w/2)/8,(p.ty+10)/8) == sp then
+ 	return true
+ end
+end
+
 	--[[
+	--old hitground
 	local x1,y1,x2,y2 = box(p,true)
 	--local x1,y1,x2,y2 = pbox(p.tx,p.ty)
 	if (bonk(x1,y2) or 
@@ -1314,13 +1397,6 @@ function hitground()
 		return true
 	end
 	--]]
-end --hitground()
-
-function groundis(sp)
- if mget((p.tx+p.w/2)/8,(p.ty+10)/8) == sp then
- 	return true
- end
-end
 
 
 --[[
@@ -1387,29 +1463,65 @@ end --bonk4()
 --combat
 
 function init_weapons()
+		arrow_normal={
+			dmg=2,w=6,h=1,
+			speed=3,
+			colors={6,5}
+		} --arrow_normal
+		
+		arrow_fire={
+			dmg=4,w=6,h=1,
+			speed=3,
+			colors={9,8}
+		} --arrow_normal
+		
 	weapons={
 		none={
 			name="fist",
 			dmg=1,t=1,r=0,
 			x=4,y=2,w=2,h=2,
-			sp={0},dur=5,
+			sp={0},
+			drop_sp=0,
+			dur=5,cooldown=5,
+			melee=true,
+			sound=3,
 			action=fist_attack},
 			
 		sword={
 			name="sword",
-			dmg=2,t=5,r=4,
+			dmg=3,t=5,r=4,
 			x=4,y=0,w=4,h=7,
-			sp={9,10,11},dur=10,
-			action=sword_attack},
+			dur=5,cooldown=5,
+			melee=true,
+			sp={9,10,11},
+			drop_sp=119,
+			sound=0,
+			action=melee_attack},
+			
+		axe={
+			name="axe",
+			dmg=4,t=5,r=4,
+			x=5,y=0,w=4,h=7,
+			dur=5,cooldown=5,
+			melee=true,
+			sp={98,100,99},
+			drop_sp=114,
+			sound=0,
+			action=melee_attack},
 			
 		bow={
 			name="bow",
-			dmg=1,t=5,r=4,
+			t=5,r=4,
+			dmg=0,
 			x=4,y=0,w=4,h=7,
-			arrow_speed=3,
-			sp={12,13},dur=5,
+			dur=2,cooldown=15,
+			melee=false,
+			sp={12,13,13,12,12,12,12,12,12},
+			drop_sp=118,
+			sound=1,
+			arrow=arrow_normal,
 			action=bow_attack}
-		} 
+		} --weapons
 		
 		arrows={}
 end
@@ -1421,80 +1533,100 @@ end
 	need entity system (not specifically weapon)
 --]]
 
-function combat()
-	for e in all (enemies) do
-		--local ee = {x=e.x,y=e.y,
-		--w=e.class.w,h=e.class.h}
-		local exy = {x1=e.x,y1=e.y,x2=e.x+e.class.w,y2=e.y+e.class.h}
-		
-		if (e.x-p.x)^2+(e.y-p.y)^2 < 240 then
-			set_ipanel({e.class.name})
-			--if (e.boss) closedoor(e)
-		end
-		
-		-- enemy hits player
-		if e.cool>0 then
-			e.cool -= 1
-		elseif collide_xy(p,exy) and e.cool<=0 then
-			p.health -= e.class.dmg
-			e.cool = e.class.cool
-		end --if e hit p
+function combat(e)
+
+	--collides with player?
+	local exy = {x1=e.x,y1=e.y,x2=e.x+e.class.w,y2=e.y+e.class.h}
+
+	-- enemy hits player
+	if e.cool>0 then
+		e.cool -= 1
+	elseif collide_xy(p,exy) then
+		--p.health -= e.class.dmg
+		local dmg=e.class.dmg
+		if (p.rune_shield) dmg/=2
+		damage(p,e.class.dmg)
+		--end
+		e.cool = e.class.cool
+	end --if e hit p
 	
-	
- 	-- player weapon hits enemy
- 		if btnp(❎) and 
- 		(p.weapon.name=="sword" or
- 			p.weapon.name=="fist") and
- 		collide_xy(p.melee,exy) then
-				--damage_enemy(e,p.weapon.dmg)
-				e:defense(p.weapon.dmg)
-			end --if btnp(❎)
-		
-		
-		if (p.health<=0) then
-			p.dead=true
-			active = false
-		end
-	end --enemies loop
+ -- player weapon hits enemy
+ if btnp(❎) and p.weapon.melee and
+ 	collide_xy(p.melee,exy) then
+			--damage_enemy(e,p.weapon.dmg)
+		local dmg=p.weapon.dmg
+		if (p.rune_sword) dmg*=2
+		damage(e,dmg)
+	end --if btnp(❎)
+end --combat
+
+function damage(o,dmg)
+	o.health -= dmg
+	o.hitflash=15 --e.cool
+	if (o.health<=0) o:die()
+	o:defend()
+	--if enemy
+	--if (not o==p) flip_enemy(o)
+end --damage
+
+function update_flash(o)
+	if o.hitflash and o.hitflash>0 then
+		o.hitflash -=1
+	end
 end
 
+function draw_flash(o)
+	if o.hitflash and o.hitflash>0 then
+		pal(o.flash[1],o.flash[2])
+	end
+end
 
 function player_combat()
 	foreach(arrows,update_arrow)
 	
  if p.hitting then
 		animate(p.w_anim,p.weapon.sp)
-		if p.w_anim.tick>p.weapon.dur then
+		if p.w_anim.tick>p.weapon.cooldown then
 			p.hitting=false
 		end --tick
 	else --if not p.hitting
 		if btnp(❎) then
 			p.w_anim.tick=1
 			p.weapon:action()
- 		--p.hitting=true
+ 		p.hitting=true
+ 		if sound and p.weapon.sound then
+ 			sfx(p.weapon.sound)
+ 		end --if
  	end
 		p.w_anim.sp=p.weapon.sp[1]	
 	end --p.hitting
 end --player_combat
 
+
 --weapons
-function sword_attack(self)
+function melee_attack(self)
 	if (sound) sfx(0)
- p.hitting=true
+ --p.hitting=true
 end
 
 function fist_attack(self)
 	if (sound) sfx(3)
- p.hitting=true
+ --p.hitting=true
 end
 
 function bow_attack(self)
 	if (sound) sfx(1)
-	p.hitting=true
-	local a={sp=13,w=4,h=1,
-		x=p.melee.spx,y=p.y+4,
-		dmg=self.dmg,
-		dx=self.arrow_speed * p.xscale}
+	--p.hitting=true
+	local arrow=self.arrow
+	local a={
+		w=arrow.w,
+		h=arrow.h,
+		x=p.melee.spx,
+		y=p.y+4,
+		dmg=arrow.dmg,
+		colors=arrow.colors,
+		dx=arrow.speed * p.xscale,
+	}
 	add(arrows,a)
 end
 
@@ -1509,7 +1641,7 @@ function update_arrow(a)
 	for e in all (enemies) do
 		local exy = {x1=e.x,y1=e.y,x2=e.x+e.class.w,y2=e.y+e.class.h}
 		if collide_xy(a,exy) then
-			e:defense(a.dmg)
+			damage(e,a.dmg)
 			del(arrows,a)
 		end --if collide
 	end --for
@@ -1547,14 +1679,16 @@ function init_items()
 	 	action=function()
 	 		-- +10-20 gold
 	 		local g=flr(rnd(10))+10
+	 		if (p.rune_chalice) g*=2
 	 		p.gold += g
 	 		set_ipanel({"+"..g.." gold"})
 	 	end},
 	 	
 	 {name="gold",sprite=121,
 	 	action=function()
-	 		-- +1-5 gold
-	 		local g=flr(rnd(5))+1
+	 		-- +5-10 gold
+	 		local g=flr(rnd(5))+5
+	 		if (p.rune_chalice) g*=2
 	 		p.gold += g
 	 		set_ipanel({"+"..g.." gold"})
 	 	end},
@@ -1609,73 +1743,129 @@ function init_items()
 	 --runes
 	 {name="chalice rune",sprite=104,
 	 	msg={"chalice rune","gold x2"},
+			blocked=function()
+		 	return p.rune_chalice
+		 end,
 	 	action=function()
 	 		--double gold
+	 		p.rune_chalice=true
+	 		add(p.runes,104)
 	 	end},	 
 	 	
 	 {name="sword rune",sprite=105,
 	 	msg={"sword rune","melee x2"},
+	 	blocked=function()
+		 	return p.rune_melee
+		 end,
 	 	action=function()
 	 		--double melee strength
+	 		p.rune_melee=true
+	 		add(p.runes,105)
 	 	end},
 	 	
 	 {name="shield rune",sprite=106,
 	 	msg={"shield rune","defense x2"},
+	 	blocked=function()
+		 	return p.rune_shield
+		 end,
 	 	action=function()
 	 		--double defense
+	 		p.rune_shield=true
+	 		add(p.runes,106)
 	 	end},	 
 	 	
 	 {name="heart rune",sprite=107,
 	 	msg={"heart rune","health x2"},
+	 	blocked=function()
+		 	return p.rune_heart
+		 end,
 	 	action=function()
 	 		--double health
 	 		p.maxhealth *= 2
+	 		p.rune_heart=true
+	 		add(p.runes,107)
 	 	end},
 	 	
 	 {name="fist rune",sprite=108,
 	 	msg={"fist rune","damage x2"},
+	 	blocked=function()
+		 	return p.rune_fist
+		 end,
 	 	action=function()
 	 		--double damage
+	 		p.rune_fist=true
+	 		add(p.runes,108)
 	 	end},
 	 	
 	 {name="key rune",sprite=109,
 	 	msg={"key rune","extra key"},
+	 	blocked=function()
+		 	return p.rune_key
+		 end,
 	 	action=function()
-	 		--extra key?
+	 		--extra key? might get rid
+	 		p.rune_key=true
+	 		add(p.runes,109)
 	 	end},
 	 	
 	 {name="slime rune",sprite=110,
 	 	msg={"slime rune","summon slime pet"},
+	 	blocked=function()
+		 	return p.rune_slime
+		 end,
 	 	action=function()
 	 		--summon slime pet
+	 		p.rune_slime=true
+	 		add(p.runes,110)
 	 	end},
 	 	
 	 {name="bow rune",sprite=111,
 	 	msg={"bow rune","range x2"},
+	 	blocked=function()
+		 	return p.rune_bow
+		 end,
 	 	action=function()
 	 		--double ranged damage
+	 		p.rune_bow=true
+	 		add(p.runes,111)
 	 	end},
 	 	
 	 {name="bow",sprite=118,
 	 	verb={"equip","equipped"},
 		 blocked=function()
-			 if (p.weapon == weapons.bow) then
-			 	return true
-			 end
+		 	return name == p.weapon.name
 		 end,
 	 	action=function(x,y)
-	 		if p.weapon == weapons.sword then
-	 			mset(x,y,119)
-	 		else
-	 			mset(x,y,0)
-	 		end
-	 		p.weapon = weapons.bow
-	 	end},
-	 	
+	 		mset(x,y,p.weapon.drop_sp)
+				p.weapon = weapons.bow
+	 	end
+	 	--set_weapon(x,y,weapons.bow)
+	 },
 	 	
 	 {name="sword",sprite=119,
 	 	verb={"equip","equipped"},
+			blocked=function()
+		 	return name == p.weapon.name
+		 end,
+	 	action=function(x,y)
+	 		mset(x,y,p.weapon.drop_sp)
+				p.weapon = weapons.sword
+			end
+	 },
+	 	
+	 {name="axe",sprite=114,
+	 	verb={"equip","equipped"},
 		 blocked=function()
+		 	return name == p.weapon.name
+		 end,
+		 action=function(x,y)
+	 		mset(x,y,p.weapon.drop_sp)
+				p.weapon = weapons.axe
+			end
+	 },
+	}
+	--[[
+			 blocked=function()
 			 if p.weapon.name == "sword" then
 			 	return true
 			 end
@@ -1688,9 +1878,44 @@ function init_items()
 	 		end
 	 		p.weapon = weapons.sword
 	 	end},
+	 --]]
 	 
-	}
+	 --[[
+	loot:
+		1 bag
+		2 gold
+		3 key
+		6 scroll
+		7 health
+		8 chalice_rune 104
+		9 sword_rune 105
+		10 shield_rune 106
+		11 heart_rune 107
+		12 fist_rune 108
+		13 key_rune 109
+		14 slime_rune 110
+		15 bow_rune 111
+		16 bow
+		17 sword
+		18 pickaxe
+	--]]
+
 end
+
+--[[
+function already_got_one(name)
+	if p then
+		return name == p.weapon.name
+	end
+end
+
+function set_weapon(x,y,weapon)
+	if p then
+		mset(x,y,p.weapon.drop_sp)
+		p.weapon = weapon
+	end
+end
+--]]
  
 
 --loop through item types
@@ -1727,7 +1952,7 @@ function behavior(x,y,item)
 			item.name}
 	end
 	
-	if (item.blocked) and
+	if item.blocked and
 		 item.blocked() then
 		set_ipanel({msg[3]})
 	else
@@ -1741,155 +1966,59 @@ function behavior(x,y,item)
 		end --if btnp
 	end --if item.blocked
 end -- function
-	
---[[
-		--key
- 	local x,y,t=near(key.sp)
- 	if t then --key
- 			set_ipanel({key.msg[1]})
- 			if btnp(key.bt) then
- 				set_ipanel({key.msg[2]})
- 				p.keys += 1
- 				mset(x,y, 0)
- 			end
- 	end --keys
- 	
- 	--locked door
- 	local x,y,t=near(81)
- 	if t then --door
- 		if p.keys>0 then
- 			set_ipanel({"🅾️ unlock door"})
- 			if btnp(🅾️) then
- 				set_ipanel({"door unlocked"})
- 				p.keys -= 1
- 				mset(x,y,82)
- 			end
- 		else
- 			set_ipanel({"locked door"})
- 		end
- 	end -- locked door
- 		
- 	-- door
- 	local x,y,t=near(door.sp)
- 	if t then --door
- 			set_ipanel({door.msg[1]})
- 			if btnp(🅾️) or btnp(❎) then
- 				set_ipanel({door.msg[2]})
- 				mset(x,y, 80)
- 			end
- 	end -- door
- 	
- 	--health potion
- 	local x,y,t=near(health.sp)
- 	if t then
- 		if p.health<p.maxhealth then --health potion
- 	--set_ipanel({"iron key","❎ take"})
- 			set_ipanel({health.msg[1]})
- 			if btnp(🅾️) then
- 				set_ipanel({health.msg[2]})
- 				p.health = p.maxhealth
- 				mset(x,y, 0)
- 			end
- 		else
- 			set_ipanel({health.msg[3]})
- 		end --keys
- 	end
-end --update_items()
 
---]]
-
---[[
---generic item behavior
-function item_behavior(x,y,item)
-	if item.condition == nil or
-		item.condition() then
-		set_ipanel({item.msg[1]})
-		if btnp(item.btn) then
-			set_ipanel({item.msg[2]})
-			item.action()
-			mset(x,y,0)
-		end
-	end
-end
---]]
-
---[[
--- set a generic action
-function item_action(item)
-	if not item.dcon then
-		
-	end
-end
---]]
-
-
---[[
-function draw_items()
- 	--[[
- 	for k in all (keys) do
- 		spr(84,k.x*8,k.y*8)
- 		spr(84,k.x,k.y)
- 	end
- 	--]]
- end --draw_items
---]]
-
---[[
-function make_items()
- 	--temp_item=nil
- 	for y=0,32 do
- 		for x=0,128 do
- 			--local cell=mget(x,y)
- 			--[[
- 			if cell==84 then --key
- 				add(keys,{x=x,y=y})
- 				add(keys,{x=x*8,y=y*8,
- 					w=8,h=8,name="key"})
- 				mset(x,y,0)
- 			end -- key
- 			--]]
- 		end -- for x
- 	end --for y
-end --make_items
---]]
 -->8
 --notes
 --[[ comments
 
 --jeff to do
-
-[] balance hp,damage
-[] balance weapon drops, treasure
-[] enemy states
-	[] telegraph move
-	[] pause / frozen
-	[] aggro / charge
-	[] retreat
-	[] missile attack
-	[] melee attack
-	[] teleport
-	[] spikes
-[] mobs shouldn't float
-[] flying mobs turn
-[] slime pack split apart
-[] biome entry sign
-[] bosses make more interesting
-[] new weapon mechanics
-	[] shield
-	[] pickaxe
-	[] frost shield
-[] make sure all runes work
+[x] bow cooldown
+[x] player hit flash
+[x] bow/arrow system!
+[x] enemy drop system
+[ ] get sizes right
+[ ] balance hp,damage
+[ ] balance enemy treasure/weapon drops
+[ ] enemy states
+	[ ] telegraph move
+	[ ] pause / frozen
+	[ ] aggro / charge
+	[ ] retreat
+	[ ] missile attack
+	[ ] melee attack
+	[ ] teleport
+	[ ] spikes
+[ ] mobs shouldn't float
+[ ] flying mobs turn
+[ ] slime pack split apart
+[ ] biome entry signs
+[ ] bosses more interesting
+[ ] summon a slime pet
+[ ] new weapon mechanics
+	[x] pickaxe
+	[ ] shield
+	[ ] frost shield
+	[ ] staff w/missiles
+	[ ] fists
+[ ] make sure all runes work
+	[x] rune inventory
+	[x] display active runes
+[ ] status effects
+	[ ] weapons with status
 
 
 sprite, name, damage, health
+player 10 hp
+pickup +5 hp healed
+scroll +2 hp permanent
 
 enemies
 14 barbarian slime
-15 
+15 monk slime
 21 green slime
-24 skeleton dmg=2,health=3
-25 skeleton
-26 shield skeleton
+24 skeleton d=3,h=3,c=30
+25 sword skeleton
+26 warrior skeleton
 27 bomb skeleton
 28
 30 orange slime
@@ -1937,9 +2066,13 @@ runes
 
 biome names!!!!!
 
-prison,outside,uderground beach
-snowy mountan caves,unmeables cavern
-aliens home,music jungle
+prison,
+outside,
+underground beach
+snowy mountan caves,
+unmeables cavern
+aliens home,
+music jungle
 
 
 
@@ -1956,14 +2089,14 @@ __gfx__
 000000002002000008850000022000002225000052220000001100c0022000000220000000000000000000006555000000400000000400000282800048181000
 00000000000000000220000020020000200200002002000022288c00200200002002000000000000000000000650000004000000444000000181100041111000
 00000000000000002002000020020000000200002000000022288e00000200002000000000000000000000000060000040000000000000000111100041111000
-00000000600005000000000000000000000000000000000009000000000000000555000010555000105550001105550000055500e4e4d8d80000000000000000
-60000500600d50c06000050060000500000000000000000099900000000000000c5c000010c5c00010c5c000110c5c00000c5c00444488880000000000000000
-600d50c060122010600d50c0600d50c0005000000000000009000000aa1b1baa0555000056555000565550000605550600055506444488880000000000000000
-60122010510221006012201060122010000500000000000000000000a7bbbb7a0666000050666000506677700666666606666666444488880000000000000000
-5102210005011000510221005102210000060000bbbb00001b1b000077bbbb7760606000000606000006777000066600000666001b1bc9c99999000088880000
-05011000001001000501100005011000050611001b1b0000bbbb000000bbbb000010000000010000000177700000600000006000bbbb9999c9c90000d8d80000
-0010010000000000001001000010010000562111bbbb0000bbbb0000000000000101000000101000001017000001010000010100bbbb99999999000088880000
-00100100000000000010000000000100c0d22111bbbb0000bbbb0000000000000101000000101000001010000001010000010100bbbb99999999000088880000
+00000000600005000000000000000000000000000000000009000000000000000555000010555000105550000055501100555000e4e4d8d80000000000000000
+60000500600d50c06000050060000500000000000000000099900000000000000c5c000010c5c00010c5c00000c5c01100c5c000444488880000000000000000
+600d50c060122010600d50c0600d50c0005000000000000009000000aa1b1baa0555000056555000565550006055506060555000444488880000000000000000
+60122010510221006012201060122010000500000000000000000000a7bbbb7a0666000050666000506677706666666066666660444488880000000000000000
+5102210005011000510221005102210000060000bbbb00001b1b000077bbbb7760606000000606000006777000666000006660601b1bc9c99999000088880000
+05011000001001000501100005011000050611001b1b0000bbbb000000bbbb000010000000010000000177700006000000060000bbbb9999c9c90000d8d80000
+0010010000000000001001000010010000562111bbbb0000bbbb0000000000000101000000101000001017000010100000101000bbbb99999999000088880000
+00100100000000000010000000000100c0d22111bbbb0000bbbb0000000000000101000000101000001010000010100000101000bbbb99999999000088880000
 00000000000000000000000000000000000000006008800601100000000000000000000000000000000005500000000000000000000000000000000000000000
 0044440000000000000000000000000000000000600110060110000006077777600c0c0000000000770001500000000000c5c000000000000000000000000000
 609494000000000000000000000000001100000060111106c88c00006467c5c76001100088888000070005500000000000050000050000000000000000000000
@@ -1988,30 +2121,30 @@ cc777700cc7cccc788888888c6866688bbb0000000000000bbb00000aa000aa0b999999b9b9bb9b9
 11588511511155115161151122888e22b739937bb3bbbb3bdddddddd898888987767777777cc7cc776cc8887d5d5444544454444000018000001888000005500
 111551111511151115115161228222e2b377773bb333333bdcdcdcdc9c9889c977777767cc7ccc7c77c78886dd55445444444464000081000001118000004400
 11111111511111516115111522822222bbbbbbbbbbbbbbbbcdcdcdcdc8c88c8c76777777ccc7cccc67ccccc7dddd445446444444000011000001111000004400
-00044440000066000006666040000004000060000000000000000000a99ada99900cc007111111111111111182222222b333333b060060000000000000000000
-00044440000066000006666044444444000606000000000000000000a9aaa99a00000c7718811111111111158888222833044033606660000000000000000000
-00044440000077000006667040000004000060000000000000000000a9aa99aa0cc007701118818811111d51222882883b0440b30600000000444400009bbb00
-00055550000055000006665044444444000060000000000000000000aaa99aaa000c7700111118811115155122228282bb0440bb0000000000077000097bbb00
-00044440000055000006665040000004000060000505050500000000da99aa9ac007700011818811111155518888828cbb0440bb0000000000788700000bbb70
-00055550000077000006667044444444006660000505050500500050a99aaa9a0c77009011818111111112218888888cb004400b00000000078999700077b900
-00044440000066000006666040000004000060000505050505050505a9adaa9a07700000118111811111211288222ccc3334433300000000007987000998e000
-0004444000006600000666604444444400666000666666666666666699aaa9ad77090000181118811111211222222ccc300440030000000000077000008ee900
-00111111111111000000000000000000000000000000000000660000003030000000000000000000000000000000000000000000000000000000000000000000
-00188111111881000000000000000000000000000000000000046000003303000055550000555500005555000055550000555500005955000055550000555500
-001111111111110000000000000000000000000000000000004560003003003005999550095665900577755005b5b550055555500595955005bbbb5005545550
-00000011110000000000000000000000000000000000000004555000333333335599950055666500557775005bbbbb005558280055595500551b1b0055444400
-110000111100001100000000000000000000000000000000405000000030003055595550544655505577755055bbb550558885505559955055bbbb5055545550
-1110001111000111000000000000000000000000000000000000000003333000559995505545595055575550555b5550555528505559555055bbbb5055444450
-11111111111111110000000000000000000000000000000000000000330030000555555005555550055555500555555005555550055995500555555005545550
-11111111111111110000000000000000000000000000000000000000300030000005550000055500000555000005550000055500000555000005550000055500
-11000011110000110000000000000000000000000000000000090000000090000000000000000000000000000000000000000000000000000000009000000000
-0000111111110000000000000000000000000000000000000000000000000000000000000000000000007cc00000000009000009000000000000000000000000
-00011111111110000000000000000000000000000000000000000040009000600000044000000000000070000000000000000000000600009006666000000000
-0001000000001000000000000000000000000000000000000060004000000600000440040000000000007cc00000777000007070444460000000066040005000
-00010000000010000000000000000000000000000000000090060040050060090044940000000000000070000000777000047770000600000000406004555000
-1111111001111111000000000000000000000000000000000000640900560000044944400000000000007cc00000777000407770000000000004006000456000
-11010110011010110000000000000000000000000000000000004600004500000444944000000099000070000000070000047770000000000040000000046000
-11010110011010110000000000000000000000000000000004440050040050000044440099090099000000000000000090000700000000000400000900660000
+00044440000066000006666040000004000060000000000000000000a99ada9900000000111111111111111182222222b333333b060060000000000000000000
+00044440000066000006666044444444000606000000000000000000a9aaa99a0000000018811111111111158888222833044033606660000000000000000000
+00044440000077000006667040000004000060000000000000000000a9aa99aa000000001118818811111d51222882883b0440b30600000000444400009bbb00
+00055550000055000006665044444444000060000000000000000000aaa99aaa00000000111118811115155122228282bb0440bb0000000000077000097bbb00
+00044440000055000006665040000004000060000505050500000000da99aa9a0000000011818811111155518888828cbb0440bb0000000000788700000bbb70
+00055550000077000006667044444444006660000505050500500050a99aaa9a0000000011818111111112218888888cb004400b00000000078999700077b900
+00044440000066000006666040000004000060000505050505050505a9adaa9a00000000118111811111211288222ccc3334433300000000007987000998e000
+0004444000006600000666604444444400666000666666666666666699aaa9ad00000000181118811111211222222ccc300440030000000000077000008ee900
+00111111111111000066000000660000000000000000000000000000003030000000000000000000000000000000000000000000000000000000000000000000
+00188111111881000004600000046000000000000000000000000000003303000055550000555500005555000055550000555500005955000055550000559500
+001111111111110000406000004560000000000000000000000000003003003005999550095665900577755005b5b550055555500595955005bbbb5005595550
+00000011110000000400000004555000400050000000000000000000333333335599950055666500557775005bbbbb005558280055595500551b1b0055955500
+110000111100001140000000405000000455500000000000000000000030003055595550544655505577755055bbb550558885505559955055bbbb5059999990
+1110001111000111000000000000000000456000000000000000000003333000559995505545595055575550555b5550555528505559555055bbbb5055955550
+11111111111111110000000000000000000460000000000000000000330030000555555005555550055555500555555005555550055995500555555005595550
+11111111111111110000000000000000006600000000000000000000300030000005550000055500000555000005550000055500000555000005550000059500
+1100001111000011000000900000000000000000900cc00700090000000090000000000000000000000000000000000000000000000000000000000000000000
+000011111111000000000000090000090000000000000c770000000000000000000000000000000000007cc00000000000000000000000000000000000555500
+00011111111110009006666000000000000000000cc0077000000040009000600000044000000000000070000000000000060000000000000000000005545550
+0001000000001000000006600000707000000000000c77000060004000000600000440040000000000007cc07770000044446000000000000000000055444400
+0001000000001000000040600004777000000000c007700090060040050060090044940000000000000070007770000000060000000000000000000055545550
+11111110011111110004006000407770000000000c7700900000640900560000044944400000000000007cc07770000000000000000000000000000055444450
+11010110011010110040000000047770000000000770000000004600004500000444944000000099000070000700000000000000000000000000000005545550
+11010110011010110400000990000700000000007709000004440050040050000044440099090099000000000000000000000000000000000000000000055500
 000000000000000000000000000000000054000000005400000000000000c4c43500c40000000000000000007500000000000000000000000000000075000000
 84358484840000848484848435840000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000540071000000545454c4c4c4c4c400350000c4c4c40000000000007500000000000000000000000000000075000000
@@ -2214,10 +2347,10 @@ __map__
 42005e7651000000000000184200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4242424242534242534242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 420000000053424253515e184200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4254007700534242534242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4254697700534242534242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4242424242534242004f00544200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4200000042534242424253424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-420000794f534200004153410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+42005e794f534200004153410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4242424242424200004153410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4200000000000000004153410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4200000000000000004153410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
