@@ -403,6 +403,7 @@ end --debug()
 function init_player()
 	p={     --attributes
 		x=8,y=50,--pos
+		--x=110*8,y=58*8,
 		speed=2,--walk speed
 		jforce=-2.5,--jump force
 		jumps=0,maxjumps=1,--jumps
@@ -867,7 +868,7 @@ function init_enemies()
 			speed=.75,w=7,h=8,
 			cool=10,
 			deathsp=43,
-			drops={9,10}
+			drops={9,10,17,18}
 			},
 			
 		--outside
@@ -892,25 +893,25 @@ function init_enemies()
 			
 		--snowy biome
 		{name="snowy dwarf",sp=39,
-			health=6,dmg=5,
-			speed=.5,w=7,h=6,
+			health=18,dmg=8,
+			speed=.7,w=7,h=6,
 			cool=10,
 			flash=colormap.white},
 			
 		{name="ice troll",sp=49,
-			health=10,dmg=5,
-			speed=.5,w=7,h=6,
+			health=20,dmg=10,
+			speed=.4,w=7,h=6,
 			cool=10,
 			flash=colormap.blue},
 			
 		{name="turret worm",sp=46,
-			health=5,dmg=3,
+			health=15,dmg=7,
 			speed=.5,w=8,h=8,
 			cool=10,
 			},
 			
 		{name="snow dwarf king",sp=44,
-			health=15,dmg=5,
+			health=30,dmg=15,
 			speed=.5,w=8,h=8,
 			cool=10,
 			deathsp=45,
@@ -919,21 +920,21 @@ function init_enemies()
 			
 		--music jungle
 		{name="music note",sp=52,
-			health=10,dmg=5,
-			speed=.5,w=8,h=8,
+			health=20,dmg=10,
+			speed=.6,w=8,h=8,
 			cool=10,
 			flash=colormap.green
 			},
 			
 		{name="music note",sp=53,
-			health=10,dmg=5,
-			speed=.5,w=8,h=8,
+			health=20,dmg=10,
+			speed=.4,w=8,h=8,
 			cool=10,
 			flash=colormap.green
 			},
 			
 		{name="music note",sp=54,
-			health=10,dmg=5,
+			health=20,dmg=10,
 			speed=.5,w=8,h=8,
 			cool=10,
 			flash=colormap.green
@@ -1025,31 +1026,31 @@ function init_enemies()
 			flash=colormap.orange},
 			
 		{name="red slime",sp=31,
-			health=3,dmg=2,
-			speed=.5,w=5,h=8,
+			health=15,dmg=5,
+			speed=.8,w=5,h=8,
 			cool=10,
 			flash=colormap.red},
 			
 		{name="frost slime",sp=48,
-			health=3,dmg=2,
-			speed=.5,w=5,h=8,
+			health=15,dmg=6,
+			speed=.7,w=5,h=8,
 			cool=10,
 			flash=colormap.white},
 			
 		{name="viking slime",sp=14,
-			health=10,dmg=5,
+			health=20,dmg=10,
 			speed=.5,w=5,h=8,
 			cool=10,
 			flash=colormap.green},
 			
 		{name="monk slime",sp=15,
-			health=10,dmg=5,
+			health=20,dmg=10,
 			speed=.5,w=5,h=8,
 			cool=10,
 			flash=colormap.green},
 			
 		{name="wiz slime",sp=61,
-			health=10,dmg=5,
+			health=20,dmg=10,
 			speed=.5,w=5,h=8,
 			cool=10,
 			flash=colormap.green},
@@ -1180,8 +1181,9 @@ function update_boss(e)
 		local ddist = abs(e.x-e.entrance[1]*8)
 		local pdist = abs(e.x-p.x)
 		--if e.entrance[1]*8+1 < p.x then
-		if (pdist<ddist-8)	closedoors(e)
-		--end --if
+		if pdist<ddist-8 and abs(e.y-p.y) < 16	then
+			closedoors(e)
+		end --if
 	end --if
 end
 
@@ -1972,39 +1974,40 @@ end -- function
 --[[ comments
 
 --jeff to do
-[x] bow cooldown
-[x] player hit flash
-[x] bow/arrow system!
-[x] enemy drop system
-[ ] get sizes right
-[ ] balance hp,damage
-[ ] balance enemy treasure/weapon drops
-[ ] enemy states
-	[ ] telegraph move
-	[ ] pause / frozen
-	[ ] aggro / charge
-	[ ] retreat
-	[ ] missile attack
-	[ ] melee attack
-	[ ] teleport
-	[ ] spikes
-[ ] mobs shouldn't float
-[ ] flying mobs turn
-[ ] slime pack split apart
-[ ] biome entry signs
-[ ] bosses more interesting
-[ ] summon a slime pet
-[ ] new weapon mechanics
-	[x] pickaxe
-	[ ] shield
-	[ ] frost shield
-	[ ] staff w/missiles
-	[ ] fists
-[ ] make sure all runes work
-	[x] rune inventory
-	[x] display active runes
-[ ] status effects
-	[ ] weapons with status
+❎ bow cooldown
+❎ player hit flash
+❎ bow/arrow system!
+❎ enemy drop system
+[] get sizes right
+[] balance hp,damage
+[] balance enemy treasure/weapon drops
+[] enemy states
+	[] telegraph move
+	[] pause / frozen
+	[] aggro / charge
+	[] retreat
+	[] missile attack
+	[] melee attack
+	[] teleport
+	[] spikes
+[] mobs shouldn't float
+[] flying mobs turn
+[] slime pack split apart
+[] biome entry signs
+[] bosses more interesting
+[] summon a slime pet
+[] new weapon mechanics
+	❎ pickaxe
+	[] shield
+	[] frost shield
+	[] staff w/missiles
+	[] fists
+[] make sure all runes work
+	❎ rune inventory
+	❎ display active runes
+[] status effects
+	[] weapons with status
+❎ locked out of slime mage
 
 
 sprite, name, damage, health
