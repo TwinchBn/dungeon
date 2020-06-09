@@ -5,7 +5,7 @@ __lua__
 --by ben + jeffu warmouth
 
 function _init()
-	reload(0x2000, 0x2000, 0x1000)
+	reload(0x1000, 0x1000, 0x2000)
 	poke(0x5f5c, 255)	--btnp fix	
 	trace=false
 	sound=false
@@ -21,8 +21,8 @@ end --_init()
 function _update()
 	--poke(0x5f00+92,255)
 	log={}
+ update_player()
 	if active then
- 	update_player()
  	update_enemies()
  	update_items()
  	update_cam()
@@ -35,10 +35,8 @@ function _draw()
 	draw_cam()
 	--map(0,0,0,0,128,64)
  map(0,0,0,0,128,64)
- if active then
- 	foreach(enemies,draw_enemy)
- 	draw_player()
- end
+ foreach(enemies,draw_enemy)
+	draw_player()
  camera(0,0)
  draw_ui()
 end --_draw()
@@ -168,7 +166,8 @@ end
 
 function init_ui()
 	--log={}
-	dpanel={"you have been","pixelated","❎ restart"}
+	dpanel1={"you have been","pixelated!"}
+	dpanel2={"❎ restart"}
  spanel={"❎ start"}
 	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
 	uh={x=0,y=0,w=10,h=0,cb=8,cf=11} --health
@@ -189,7 +188,7 @@ end --update_ui()
 
 function set_ipanel(msg,t)
 	ipanel=msg
- if (t==nil) ipanel_timer=30
+ if (msg and t==nil) ipanel_timer=30
 end
 
 function draw_ui()
@@ -206,7 +205,8 @@ function draw_ui()
  	if (trace and onladder()) spr(83,0,56) 
 	else --if not active
   if p.dead then
- 		draw_panel(dpanel,"c","c",1,8,true)
+ 		draw_panel(dpanel1,"c","t",1,8,true)
+ 		draw_panel(dpanel2,"c","b",1,8,true)
  		if (btnp(❎)) _init()
  	else --if not p.dead
  		 title_screen()
@@ -403,7 +403,7 @@ end --debug()
 function init_player()
 	p={     --attributes
 		--x=8,y=50,--pos
-		x=26*8,y=16*8,
+		x=43*8,y=38*8,
 		speed=2,--walk speed
 		jforce=-2.5,--jump force
 		jumps=0,maxjumps=1,--jumps
@@ -436,13 +436,15 @@ function init_player()
 			crouch={sp={2},x=0,y=2,w=4,h=7,name="crouch"},
 			jump={sp={1},x=0,y=0,w=4,h=7,name="jump"},
 			climb={sp={4,5},x=1,y=1,w=4,h=7,	name="climb"},
-			ladder={sp={4},x=1,y=1,w=4,h=7,	name="ladder"}
-			}, --end anim
+			ladder={sp={4},x=1,y=1,w=4,h=7,	name="ladder"},
+			dead={sp={6},x=0,y=5,w=7,h=3, name="dead"},
+		}, --end anim
 		--inventory={},
 		w_anim={rate=15,tick=0,fr=0,sp=0},
 		weapons={},
 		runes={},
 		die=function()
+			p.weapon=weapons.none
 			p.dead=true
 			active=false
 		end,
@@ -457,14 +459,18 @@ end
 
 function update_player()
 	--btnu(⬆️)
- move_player() --walk,climb,crouch
- jump()
- fall()
- set_player_state()
- --fall()
- 
- player_hitboxes()
-	player_combat()
+	if (p.dead) then
+			p.state=p.anim.dead
+			animate(p.anim,p.state.sp)
+			return
+	end
+	
+ 	move_player() --walk,climb,crouch
+ 	jump()
+ 	fall()
+ 	set_player_state()
+ 	player_hitboxes()
+		player_combat()
  
  --not sure what these do
  --p.cell=mget(p.x/8,p.y/8)
@@ -548,7 +554,9 @@ end
 
 function set_player_state()
 	--setting animation states
-	if onladder() and (p.y != p.py) then
+	if p.dead then
+		p.state=p.anim.dead
+	elseif onladder() and (p.y != p.py) then
 			p.state=p.anim.climb
 	elseif (p.x != p.px) then
 		p.state = p.anim.walk
@@ -701,6 +709,8 @@ function draw_player()
 	draw_flash(p)
 	spr(p.anim.sp,p.spx,p.y1,1,1,p.flip)
 	pal()
+	
+	if (p.dead) return
 	
 	--weapon
 	spr(p.w_anim.sp,p.melee.spx,
@@ -998,7 +1008,7 @@ function init_enemies()
 		
 		{name="green slime",sp=21,
 			health=8,dmg=3,
-			speed=.5,w=3,h=7,
+			speed=.3,w=3,h=7,
 			cool=10,
 			flash=colormap.green},
 			
@@ -1016,19 +1026,19 @@ function init_enemies()
 			
 		{name="brown slime",sp=47,
 			health=10,dmg=5,
-			speed=.5,w=3,h=7,
+			speed=.25,w=3,h=7,
 			cool=10,
 			flash=colormap.brown},
 			
 		{name="orange slime",sp=30,
 			health=12,dmg=6,
-			speed=.6,w=3,h=7,
+			speed=.35,w=3,h=7,
 			cool=10,
 			flash=colormap.orange},
 			
 		{name="red slime",sp=31,
 			health=15,dmg=5,
-			speed=.8,w=3,h=7,
+			speed=.4,w=3,h=7,
 			cool=10,
 			flash=colormap.red},
 			
@@ -1046,27 +1056,33 @@ function init_enemies()
 			
 		{name="monk slime",sp=15,
 			health=20,dmg=10,
-			speed=.5,w=4,h=8,
+			speed=.5,w=4,h=7,
 			cool=10,
 			flash=colormap.green},
 			
 		{name="wiz slime",sp=61,
 			health=20,dmg=10,
-			speed=.5,w=6,h=8,
+			speed=.5,w=6,h=7,
 			cool=10,
 			flash=colormap.green},
 			
 		{name="warrior slime",sp=62,
 			health=10,dmg=5,
-			speed=.5,w=6,h=8,
+			speed=.5,w=6,h=7,
 			cool=10,
 			flash=colormap.green},
 			
 		{name="thief slime",sp=63,
 			health=10,dmg=5,
-			speed=.5,w=6,h=8,
+			speed=.5,w=6,h=7,
 			cool=10,
 			flash=colormap.green},
+			
+		{name="spikes",sp=85,
+			h=3,y=4,dmg=10,speed=0},
+			
+		{name="sm spikes",sp=86,
+			h=3,y=4,dmg=5,speed=0},
 		
 	}
 	--e_hitflash=15
@@ -1089,11 +1105,16 @@ end --update_enemies
 
 function wake_enemy(mx,my)
 	local sp=mget(mx,my)
+	make_enemy(sp,mx*8,my*8)
+	mset(mx,my,0)
+end
+
+function make_enemy(sp,x,y,flipped)
 	local c=getclass(sp)
 	local d=enemy_classes[1] --default
 	local e={sp=sp,
-							x=mx*8,  y=my*8,
-							tx=mx*8, ty=my*8,
+							x=x,  y=y,
+							tx=x, ty=y,
 							w=c.w,   h=c.h,
 							health=c.health,
 							flipx=c.flipx,
@@ -1102,22 +1123,35 @@ function wake_enemy(mx,my)
 							class=c,
 							cool=c.cool,
 							defend=c.defend,
+							die=c.die,
 							state=c.state,
 							flash=c.flash,
 							deathsp=c.deathsp,
 							drops=c.drops,
+							invulnerable=c.invulnerable,
 							}
-	if (fget(sp,6)) e.boss=true
+	if (fget(sp,6)) then
+		e.boss=true
+		e.die=boss_die
+	end
+	if (fget(sp,5)) then
+		e.invulnerable=true
+		e.cool=300
+		e.flash=colormap.green
+		e.state=state_freeze
+	end
 	if (fget(sp,5)) e.fly=true
-	if (e.defend==nil)	e.defend=d.defend
-	if (e.state==nil) e.state=d.state
-	if (e.flash==nil) e.flash=d.flash
-	if (e.cool==nil) e.cool=d.cool
-	if (e.die==nil) e.die=enemy_die
-
+	if (not e.defend)	e.defend=d.defend
+	if (not e.state) e.state=d.state
+	if (not e.flash) e.flash=d.flash
+	if (not e.cool) e.cool=d.cool
+	if (not e.die) e.die=d.die
+	if (not e.w) e.w=d.w
+	if (not e.h) e.h=d.h
+	if (not e.speed) e.speed=d.speed
+	if (flipped) flip_enemy(e)
 	add(enemies,e)
 	if (e.boss) init_boss(e)
-	mset(mx,my,0)
 end
 
 
@@ -1130,19 +1164,15 @@ end
 
 
 function update_enemy(e)
-	enemy_label(e)
-	
 	if e.boss then
 		update_boss(e)
 	else
 		check_sleep(e)
 	end --if
 	
+	enemy_label(e)
 	e.state(e)
-	--enemy_collide(e)
-	
 	update_flash(e)
-	
 	combat(e)
 	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
 end
@@ -1216,15 +1246,24 @@ function	state_patrol(e)
 	end
 end
 
+function state_freeze(e)
+
+end
+
 function enemy_defend(e)
 	flip_enemy(e)
 end
 
 function enemy_die(e)
-	if (e.deathsp) mset(e.x/8,e.y/8,e.deathsp)
-	if (e.boss) opendoors(e)
-	if (e.drops) drop_loot(e)
 	del(enemies,e)
+end
+
+function boss_die(e)
+	mset(e.x/8,e.y/8,e.deathsp)
+	if (e.drops) drop_loot(e)
+	opendoors(e)
+	del(enemies,e)
+	del(bosses,e)
 end
 
 function drop_loot(e)
@@ -1240,12 +1279,14 @@ function drop_loot(e)
 end
 
 function spawn_slimes(e)
-	local mx,my=e.x/8,e.y/8
+	--local mx,my=e.x/8,e.y/8
 	local slimes={21,30,31,47}
+	local x=e.x-10
 	for i=1,#slimes do
-		mset(mx,my,slimes[i])
-		wake_enemy(mx,my)
+		--mset(mx,my,)
+		make_enemy(slimes[i],e.x+i*4,e.y,i%2==0)
 	end --for
+	del(enemies,e)
 end --function
 
 function flip_enemy(e)
@@ -1266,7 +1307,7 @@ function draw_enemy(e)
 	pal()
 	
 	if (trace) then
-		rect(e.x,e.y,e.x+e.w,e.y+e.h,8)
+		rect(e.x1,e.y1,e.x2,e.y2,8)
 		rectfill(e.x,e.y,e.x,e.y,9)
 	end
 end
@@ -1305,6 +1346,24 @@ function collide_xy(a,b)
  return false
 end --collide
 
+--[[
+function find_exy(e)
+
+	local exy={
+		x1=e.x,
+		y1=e.y,
+		x2=e.x+e.w,
+		y2=e.y+e.h
+	}
+
+	if e.class.y then
+		exy.y1+=e.class.y
+		exy.y2+=e.class.y
+	end
+	
+	return exy
+end
+--]]
 
 function touching(sp)
 	local x1,y1,x2,y2 = box(p,true)
@@ -1548,17 +1607,19 @@ end
 function combat(e)
 
 	--collides with player?
-	local exy = {
-		x1=e.x,
-		y1=e.y,
-		x2=e.x+e.class.w,
-		y2=e.y+e.class.h
-	}
+	--local exy = find_exy(e)
+		e.x1,e.y1=e.x,e.y
+		e.x2,e.y2=e.x+e.w,e.y+e.h
+
+	if e.class.y then
+		e.y1+=e.class.y
+		e.y2+=e.class.y
+	end
 
 	-- enemy hits player
 	if e.cool>0 then
 		e.cool -= 1
-	elseif collide_xy(p,exy) then
+	elseif collide_xy(p,e) then
 		--p.health -= e.class.dmg
 		local dmg=e.class.dmg
 		if (p.rune_shield) dmg/=2
@@ -1569,7 +1630,7 @@ function combat(e)
 	
  -- player weapon hits enemy
  if btnp(❎) and p.weapon.melee and
- 	collide_xy(p.melee,exy) then
+ 	collide_xy(p.melee,e) then
 			--damage_enemy(e,p.weapon.dmg)
 		local dmg=p.weapon.dmg
 		if (p.rune_sword) dmg*=2
@@ -1579,6 +1640,7 @@ function combat(e)
 end --combat
 
 function damage(o,dmg)
+	if (o.invulnerable) return
 	o.health -= dmg
 	o.hitflash=15 --e.cool
 	if (o.health<=0) o:die()
@@ -1746,7 +1808,6 @@ function init_items()
 	 		p.maxhealth += 2
 	 	end},
 	 
-	 
 	 {name="health",sprite=94,
 		 msg={"heal","healed","health"},
 		 blocked=function()
@@ -1883,6 +1944,14 @@ function init_items()
 				p.weapon = weapons.axe
 			end
 	 },
+	 
+	 --locations
+	 {loc="outside",sprite=69},
+		{loc="beach",sprite=87},
+		{loc="ice caves",sprite=72},
+		{loc="music jungle",sprite=92},
+		{loc="aliens home",sprite=67},
+		{loc="unmeables cavern",sprite=90},
 	}
 	--[[
 			 blocked=function()
@@ -1960,23 +2029,32 @@ function update_items()
 	--find closest
 end --update_items()
 
+
 --set generic item behavior
 function behavior(x,y,item)
+	if item.loc then
+		set_ipanel({item.loc})
+		return
+	end
+	
 	local verb=item.verb
 	if (verb==nil) verb={"take","taken"}
 	local msg=item.msg
 	if msg==nil then
+		msg={item.name}
+	else
 		msg={
 			verb[1].." "..item.name,
 			item.name.." "..verb[2],
 			item.name}
 	end
 	
-	if item.blocked and
-		 item.blocked() then
+	if item.blocked and item.blocked() 
+		then
 		set_ipanel({msg[3]})
 	else
 		set_ipanel({"🅾️ "..msg[1]})
+		if (item.loc) item.loc()
 		if btnp(🅾️) then
 			set_ipanel({msg[2]})
 			if (item.action) item.action(x,y)
@@ -1992,18 +2070,15 @@ end -- function
 --[[ comments
 
 --jeff to do
-[] slime pack split
-[] biome entry signs
 [] bosses more interesting
 [] enemy states
-	[] telegraph move
 	[] pause / frozen
 	[] aggro / charge
 	[] retreat
 	[] missile attack
 	[] melee attack
 	[] teleport
-	[] spikes
+	[] telegraph move
 [] balance enemy drops
 	[] treasure drops
 	[] weapon drops
@@ -2024,8 +2099,15 @@ end -- function
 [] status effects
 	[] weapons with status
 [] fine tune hp,dmg,drops
+[] optimize box collision?
 
 --jeff done
+❎ enemy heights corrected
+❎ player death sprite
+❎ map reload - fix
+❎ biome entry signs
+❎ spikes
+❎ slime pack split
 ❎ bow cooldown
 ❎ player hit flash
 ❎ bow/arrow system!
@@ -2075,6 +2157,16 @@ bosses
 49
 50 red dragon
 
+flags
+0 ground
+1 ladder
+2 enemies can't pass
+3
+4
+5 stationary hazard
+6 boss
+7 enemy
+
 
 runes
 95  scroll,+10 health
@@ -2096,13 +2188,13 @@ runes
 
 biome names!!!!!
 
-prison,
-outside,
-underground beach
-snowy mountan caves,
+66 prison,
+69 outside,
+87 underground beach
+72 snowy mountan caves,
+67 aliens home,
+92 music jungle
 unmeables cavern
-aliens home,
-music jungle
 
 
 
@@ -2189,7 +2281,7 @@ cc777700cc7cccc788888888c686668800000000bbb00333bbb00000aa000aa0b999999b9b9bb9b9
 75357500000000000000008435840000000000000000000000000000000000000000000000343500000000000000000000000000000034343434343434343434
 00000000000000000000000000000000000000000000000000000000000000007535757575757575750000007500000000000004000000000000000004757575
 75357500000000000000008435840000000000000000000000000000000000000000000000343500043434343434340000000000003400006200000034000000
-0000000000000000000000000000000000000000000000000000000000000000743500510000000000e10000150000e5f5f500e40000000000000000d4000000
+0000000000000000000000000000000000000000000000000000000000000000743500510000000000e17700150000e5f5f500e40000000000000000d4000000
 00357500008484848484840000008484848484848484840000000000000000000000000000343500040000000000000434343434343400343434343534000000
 0000000000000000000000000000000000000000000000000000000000000000006464646464647575757575757575757575750400000000b300000004757575
 757575008400000000000000f50000e5000000720000840000000000000000000000000000343500d4000000000000e4e5e5e5e5e50000f5f5f5343534f1f100
@@ -2370,7 +2462,7 @@ bbbbbbbbbbbbbbbbbbbbbbbbbb661155111155110000000000000000000000000000000000000000
 00000000dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0000000000
 
 __gff__
-00000000000000000000000000008080c0808080008080a08080808080808080c000a080808080808080c000c00080808080c000a0a0a0a0c00000c00080808001010101010101010101010101010401000100020000000100010101000000000000000000000002000000000000000000000000000000000000000000000000
+00000000000000000000000000008080c0808080008080a08080808080808080c000a080808080808080c000c00080808080c000a0a0a0a0c00000c000808080010101010101010101010101010104010001000200a0a00100010101000000000000000000000002000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
