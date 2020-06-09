@@ -566,23 +566,26 @@ function set_player_state()
 		p.state = p.anim.stand
 	end
 	
-	state_collider()
+	--state_collider()
+	p.w,p.h=p.state.w,p.state.h
+	find_exy(p)
+	
+	--[[
+	p.x1,p.y1=p.x,p.y
+	p.x2,p.y2=p.x+p.w,p.y+p.h
+	--]]
 end --set_player_state()
 	
-
+--[[
 function state_collider()
 	-- set collider box (uh, later?)
+	p.w,p.h=p.state.w,p.state.h
 	p.x1,p.y1=p.x,p.y
-	
-	p.w=p.state.w
-	p.h=p.state.h
-	
-	p.x2=p.x+p.state.w
-	p.y2=p.y+p.state.h
+	p.x2,p.y2=p.x+p.w,p.y+p.h
 	--p.w=(p.state.w-p.state.x-1) -- *p.xscale
  --p.h=p.state.h-p.state.y-1
 end --state_collider()
-
+--]]
 
 function jump()
 	if (onladder()) return
@@ -1326,25 +1329,23 @@ function box(obj,temp) --return box
  return x1,y1,x2,y2
 end --box()
 
-function collide(a,b)
- if a.x+a.w>b.x and
- 			b.x+b.w>a.x and
- 			a.y+a.h>b.y and
- 			b.y+b.h>a.y then
- 	return true
- end
- return false
-end --collide
 
 function collide_xy(a,b)
- if a.x2>b.x1 and
+ return a.x2>b.x1 and
  			b.x2>a.x1 and
  			a.y2>b.y1 and
- 			b.y2>a.y1 then
- 	return true
- end
- return false
+ 			b.y2>a.y1 --then
+ 	--return true
+ --end
+ --return false
 end --collide
+
+function find_exy(o)
+	-- find x1,y1,x2,y2 of object
+	o.x1,o.y1=o.x,o.y
+	if (o.class and o.class.y) o.y1+=o.class.y
+	o.x2,o.y2=o.x1+o.w,o.y1+o.h
+end
 
 --[[
 function find_exy(e)
@@ -1364,6 +1365,19 @@ function find_exy(e)
 	return exy
 end
 --]]
+
+--[[
+function collide(a,b)
+ if a.x+a.w>b.x and
+ 			b.x+b.w>a.x and
+ 			a.y+a.h>b.y and
+ 			b.y+b.h>a.y then
+ 	return true
+ end
+ return false
+end --collide
+--]]
+
 
 function touching(sp)
 	local x1,y1,x2,y2 = box(p,true)
@@ -1606,6 +1620,9 @@ end
 
 function combat(e)
 
+	find_exy(e)
+
+	--[[
 	--collides with player?
 	--local exy = find_exy(e)
 		e.x1,e.y1=e.x,e.y
@@ -1615,6 +1632,7 @@ function combat(e)
 		e.y1+=e.class.y
 		e.y2+=e.class.y
 	end
+	--]]
 
 	-- enemy hits player
 	if e.cool>0 then
