@@ -503,7 +503,7 @@ end
 
 
 function move_player()
-	p.tx,p.ty = p.x,p.y
+	--p.tx,p.ty = p.x,p.y
 	
 	if onladder() then
 		climb()
@@ -1476,8 +1476,8 @@ end --bonk
 function hithead()
 	--if --bonk(p.tx,p.ty+p.state.y) or
 				--bonk(p.tx+p.w/2,p.ty+p.state.y) then
-	local x1,x2,y=p.tx,p.tx+p.w,p.ty+1
-	
+	local x1,x2,y=p.tx,p.tx+p.w,p.ty
+	-- p.ty+1 was not working?
 	return fget(mget(x1/8,y/8),0)
 					or fget(mget(x2/8,y/8),0)
 end --hithead()
@@ -2177,7 +2177,6 @@ end -- function
 
 --jeff to do
 [] spikes disappeared ?
-[] falling is broken?
 
 [] enemy states
 	❎ switch state if distance
@@ -2216,6 +2215,7 @@ end -- function
 [] optimize box collision?
 
 --jeff done
+❎ player jump/fall broken?
 ❎ dist_sq & dist functions
 ❎ lots of optimizing code
 ❎ enemy heights corrected
