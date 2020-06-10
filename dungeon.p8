@@ -7,7 +7,7 @@ __lua__
 function _init()
 	reload(0x1000, 0x1000, 0x2000)
 	poke(0x5f5c, 255)	--btnp fix	
-	trace=false
+	trace=true
 	sound=false
 	active=false
 	gravity=.2
@@ -41,29 +41,6 @@ function _draw()
  draw_ui()
 end --_draw()
 
-
---------------------
------  buttons  ----
---------------------
---[[
-function btnu(b)
-	if b==⬆️ or b==🅾️ then
-		if not btn(b) and p.⬆️ then
-			p.⬆️ = false
-			return true
-		end
-	end
-end --btnu
-
-function btnd(b)
-		if b==⬆️ or b==🅾️ then
-		if btn(b) and not p.⬆️ then
-			p.⬆️ = true
-			return true
-		end
-	end
-end --btnd
---]]
 
 --------------------
 -----  utility  ----
@@ -161,6 +138,29 @@ function draw_cam()
 end
  
 
+--------------------
+-----  buttons  ----
+--------------------
+--[[
+function btnu(b)
+	if b==⬆️ or b==🅾️ then
+		if not btn(b) and p.⬆️ then
+			p.⬆️ = false
+			return true
+		end
+	end
+end --btnu
+
+function btnd(b)
+		if b==⬆️ or b==🅾️ then
+		if btn(b) and not p.⬆️ then
+			p.⬆️ = true
+			return true
+		end
+	end
+end --btnd
+--]]
+
 -->8
 --ui
 
@@ -239,11 +239,6 @@ end
 function draw_runes()
 	for i=1,#p.runes do
 		spr(p.runes[i],0,64-8*i)
-		--[[
-		local x=(p.runes[i]-96)*8
-		local y=49
-		sspr(x,y,7,7,ur.x,ur.h*i,4,4)
-		--]]
 	end
 end
 
@@ -560,15 +555,11 @@ function set_player_state()
 			p.state=p.anim.climb
 	elseif (p.x != p.px) then
 		p.state = p.anim.walk
-	elseif btn(⬇️) then
-			p.state=p.anim.crouch
+	--elseif btn(⬇️) then
+	--		p.state=p.anim.crouch
 	else
 		p.state = p.anim.stand
 	end
-	
-	--state_collider()
-	p.w,p.h=p.state.w,p.state.h
-	find_exy(p)
 	
 	--[[
 	p.x1,p.y1=p.x,p.y
@@ -609,7 +600,7 @@ function onladder()
 end --onladder()
 
 function center_on_ladder()
-	local x1,y1,x2,y2 = box(p,true)
+	local x1,y1,x2,y2 = temp_exy(p)
 	local ladder_x
 	if fget(mget(x1/8,y1/8),2) or
 				fget(mget(x1/8,y2/8),2) then
@@ -659,38 +650,9 @@ function trymove()
 end --trymove()
 
 
-function pbox(temp)
-	local x,y=p.x,p.y
-	if (temp) x,y=p.tx,p.ty
-	--return player hit box
-	--[[
-	local x1=x-p.state.w/2
-	local x2=x+p.state.w/2
-	local y1=y+7-p.state.h
-	local y2=y+7
-	--]]
-	local x1 = x-p.state.x
-	if (p.flip) x1=x-8+p.state.w
-	local y1 = y-p.state.y
-	local x2 = x1 + p.state.w
-	local y2 = y1 + p.state.h
-	
-	local wx1 = x+p.weapon.x
-	local wy1 = y+p.weapon.y
-	local wx2 = wx1+p.weapon.w
-	local wy2 = wy1+p.weapon.h
-	
- return x1,y1,x2,y2,wx1,wy1,wx2,wy2
-end --pbox()
-
-
 function player_hitboxes()
-	--p.w=p.state.w
-	--p.h=p.state.h
- p.x1 = p.x --p.state.x
-	p.y1 = p.y --p.state.y
-	p.x2 = p.x1 + p.state.w
-	p.y2 = p.y1 + p.state.h
+	p.w,p.h=p.state.w,p.state.h
+	find_exy(p)
 	
 	p.melee.x1 = p.x+p.weapon.x*p.xscale
 	p.melee.y1 = p.y1+p.weapon.y
@@ -718,52 +680,52 @@ function draw_player()
 	--weapon
 	spr(p.w_anim.sp,p.melee.spx,
 					p.melee.y1,1,1,p.flip)
-					
-	--[[
-	if p.hitting and p.weapon.name=="fist" then
-		pset(p.melee.spx+1,p.melee.y1+1,5)
-	end	
-	--]]
 	
 	--arrows
 	for a in all (arrows) do
-		--spr(a.sp,a.x,a.y)
-		--[[
-		 pset(a.x,a.y,5)
-		for i=a.x+1,a.x+a.w-1 do
-			pset(i,a.y,6)
-		end
-			pset(a.x+a.w,a.y,5)
-			--]]
 		rectfill(a.x,a.y,a.x+a.w,a.y,a.colors[1])
 		pset((a.x+a.w/2)+a.w/2*sgn(a.dx),a.y,a.colors[2])	
 	end
 	
 -- bounding boxes
 	if trace then
-		--player hitbox
 		rect(p.x1,p.y1,p.x2,p.y2,6)
-		--rect(p.x,p.y,p.x+p.w,p.y+p.h,6)
-		--player x,y
-		rectfill(p.x1,p.y1,p.x1,p.y1,10)
-		rectfill(p.x,p.y,p.x,p.y,9)
+		pset(p.x1,p.y1,10)
 		
 		if p.hitting then
-		--weapon hitbox
-		rect(p.melee.x1,p.melee.y1,p.melee.x2,p.melee.y2,8)
+			--weapon hitbox
+			rect(p.melee.x1,p.melee.y1,p.melee.x2,p.melee.y2,8)
 		end
-		
-		--[[
-		rect(p.x+p.weapon.x*p.xscale,
-					p.y+p.weapon.y,
-					p.x+p.weapon.x*p.xscale+p.weapon.w,
-					p.y+p.weapon.y+p.weapon.h,8)
-					--]]
+	
 	end
 end --draw_player()
 	
 	
+--[[
+function pbox(temp)
+	local x,y=p.x,p.y
+	if (temp) x,y=p.tx,p.ty
+	--return player hit box
+	--[[
+	local x1=x-p.state.w/2
+	local x2=x+p.state.w/2
+	local y1=y+7-p.state.h
+	local y2=y+7
+	--]]
+	local x1 = x-p.state.x
+	if (p.flip) x1=x-8+p.state.w
+	local y1 = y-p.state.y
+	local x2 = x1 + p.state.w
+	local y2 = y1 + p.state.h
 	
+	local wx1 = x+p.weapon.x
+	local wy1 = y+p.weapon.y
+	local wx2 = wx1+p.weapon.w
+	local wy2 = wy1+p.weapon.h
+	
+ return x1,y1,x2,y2,wx1,wy1,wx2,wy2
+end --pbox()
+--]]
 
 --[[
 function climb()
@@ -1088,7 +1050,6 @@ function init_enemies()
 			h=3,y=4,dmg=5,speed=0},
 		
 	}
-	--e_hitflash=15
 
 end
 
@@ -1167,6 +1128,7 @@ end
 
 
 function update_enemy(e)
+	
 	if e.boss then
 		update_boss(e)
 	else
@@ -1174,7 +1136,7 @@ function update_enemy(e)
 	end --if
 	
 	enemy_label(e)
-	e.state(e)
+	e:state()
 	update_flash(e)
 	combat(e)
 	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
@@ -1191,10 +1153,12 @@ end
 function check_sleep(e)
 	--sleep if offscreen+full health
 	if mget(e.x/8,e.y/8) == 0 and
-		(e.x < p.x - gamew or
-			e.x > p.x + gamew or
-			e.y < p.y - gameh or
-			e.y > p.y + gameh) then
+		(abs(e.x-p.x) > gamew or
+			abs(e.y-p.y) >gameh) then
+			--(e.x < p.x - gamew or
+			--e.x > p.x + gamew or
+			--e.y < p.y - gameh or
+			--e.y > p.y + gameh) then
 	 mset(e.x/8,e.y/8,e.sp)
 	 del(enemies,e)
 	end --if
@@ -1229,7 +1193,7 @@ end
 
 function opendoors(e)
 	mset(e.entrance[1],e.entrance[2],78)
- 	mset(e.exit[1],e.exit[2],78)
+ mset(e.exit[1],e.exit[2],78)
 end 
 
 --enemy states
@@ -1303,42 +1267,20 @@ function flipfactor(flipx)
 end
 
 function draw_enemy(e)
-	draw_flash(e)
 	local sprx = e.x
 	if (e.flipx) sprx=e.x-7+e.w
+	
+	draw_flash(e)
 	spr(e.sp,sprx,e.y,1,1,e.flipx)
 	pal()
 	
 	if (trace) then
 		rect(e.x1,e.y1,e.x2,e.y2,8)
-		rectfill(e.x,e.y,e.x,e.y,9)
+		pset(e.x,e.y,9)
 	end
 end
 -->8
 --collision
-
-function box(obj,temp) --return box
- local x,y = obj.x,obj.y
- if (temp) x,y=obj.tx,obj.ty
- --local x1=x-obj.w/2
- --local x2=x+obj.w/2
- local x1=x
- local x2=x+obj.w
- local y1=y+7-obj.h
- local y2=y+obj.h
- return x1,y1,x2,y2
-end --box()
-
-
-function collide_xy(a,b)
- return a.x2>b.x1 and
- 			b.x2>a.x1 and
- 			a.y2>b.y1 and
- 			b.y2>a.y1 --then
- 	--return true
- --end
- --return false
-end --collide
 
 function find_exy(o)
 	-- find x1,y1,x2,y2 of object
@@ -1347,47 +1289,24 @@ function find_exy(o)
 	o.x2,o.y2=o.x1+o.w,o.y1+o.h
 end
 
---[[
-function find_exy(e)
+function temp_exy(o) --return box
+ local x,y = o.tx,o.ty
+ return x,x+o.w,y+7-o.h,y+o.h
+end --box()
 
-	local exy={
-		x1=e.x,
-		y1=e.y,
-		x2=e.x+e.w,
-		y2=e.y+e.h
-	}
 
-	if e.class.y then
-		exy.y1+=e.class.y
-		exy.y2+=e.class.y
-	end
-	
-	return exy
-end
---]]
-
---[[
-function collide(a,b)
- if a.x+a.w>b.x and
- 			b.x+b.w>a.x and
- 			a.y+a.h>b.y and
- 			b.y+b.h>a.y then
- 	return true
- end
- return false
+function collide_xy(a,b)
+ return a.x2>b.x1 and b.x2>a.x1
+ 		 and a.y2>b.y1 and	b.y2>a.y1
 end --collide
---]]
 
 
 function touching(sp)
-	local x1,y1,x2,y2 = box(p,true)
-	if mget(x1/8,y1/8) == sp or
-				mget(x2/8,y1/8) == sp or
-				mget(x1/8,y2/8) == sp or
-				mget(x2/8,y2/8) == sp then
-		--return fget(p.cell,1)
-		return true
-	end
+	local x1,y1,x2,y2 = temp_exy(p)
+	return mget(x1/8,y1/8) == sp 
+				 or mget(x2/8,y1/8) == sp
+				 or mget(x1/8,y2/8) == sp
+				 or mget(x2/8,y2/8) == sp
 end --touching()
 
 
@@ -1418,37 +1337,28 @@ end --bonk
 function hithead()
 	--if --bonk(p.tx,p.ty+p.state.y) or
 				--bonk(p.tx+p.w/2,p.ty+p.state.y) then
-	local x1=p.tx
-	local x2=p.tx+p.w
-	local y=p.ty+1
+	local x1,x2,y=p.tx,p.tx+p.w,p.ty+1
 	
-	if fget(mget(x1/8,y/8),0)
-		or fget(mget(x2/8,y/8),0)	then
-		return true
-	end
+	return fget(mget(x1/8,y/8),0)
+					or fget(mget(x2/8,y/8),0)
 end --hithead()
 
 function hitbounds()
-	if p.tx<0 or p.tx+p.w<0 or
-				p.tx>128*8 or p.tx+p.w>128*8 or
-				p.ty<0 or p.ty+p.h<0 or
-				p.ty>63*8 or p.ty+p.h>63*8 then
-		return true
-	end
+	return p.tx<0	or p.tx>128*8 
+					or p.ty<0 or p.ty+p.h>63*8
+					--or p.tx+p.w<0
+					--or p.tx+p.w>128*8
+					--or p.ty+p.h<0
+					--or p.ty>63*8 
 end --hitbounds()
 
 function fallhit()
-	local x1=p.tx
-	local x2=p.tx+p.w
-	local y=p.ty+p.h
+	local x1,x2,y=p.tx,p.tx+p.w,p.ty+p.h
 	
-	if fget(mget(x1/8,y/8),0)
-		or fget(mget(x2/8,y/8),0)
-		or fget(mget(x1/8,y/8),1)
-		or fget(mget(x2/8,y/8),1) 
-		then
-		return true
-	end
+	return fget(mget(x1/8,y/8),0)
+					or fget(mget(x2/8,y/8),0)
+					or fget(mget(x1/8,y/8),1)
+					or fget(mget(x2/8,y/8),1) 
 end
 
 function hitground(o)
@@ -1464,6 +1374,57 @@ function groundis(sp)
  	return true
  end
 end
+
+
+
+--[[
+function find_exy(e)
+
+	local exy={
+		x1=e.x,
+		y1=e.y,
+		x2=e.x+e.w,
+		y2=e.y+e.h
+	}
+
+	if e.class.y then
+		exy.y1+=e.class.y
+		exy.y2+=e.class.y
+	end
+	
+	return exy
+end
+--]]
+
+--[[
+function box(obj,temp) --return box
+ local x,y = obj.x,obj.y
+ if (temp) x,y=obj.tx,obj.ty
+ --local x1=x-obj.w/2
+ --local x2=x+obj.w/2
+ --local x1=x
+ --local x2=x+obj.w
+ --local y1=y+7-obj.h
+ --local y2=y+obj.h
+ --return x1,y1,x2,y2
+ return x, x+obj.w,
+ 							y+7-obj.h,
+ 							y+obj.h
+end --box()
+--]]
+
+--[[
+function collide(a,b)
+ if a.x+a.w>b.x and
+ 			b.x+b.w>a.x and
+ 			a.y+a.h>b.y and
+ 			b.y+b.h>a.y then
+ 	return true
+ end
+ return false
+end --collide
+--]]
+
 
 	--[[
 	--old hitground
@@ -1621,18 +1582,6 @@ end
 function combat(e)
 
 	find_exy(e)
-
-	--[[
-	--collides with player?
-	--local exy = find_exy(e)
-		e.x1,e.y1=e.x,e.y
-		e.x2,e.y2=e.x+e.w,e.y+e.h
-
-	if e.class.y then
-		e.y1+=e.class.y
-		e.y2+=e.class.y
-	end
-	--]]
 
 	-- enemy hits player
 	if e.cool>0 then
