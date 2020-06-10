@@ -7,7 +7,7 @@ __lua__
 function _init()
 	reload(0x1000, 0x1000, 0x2000)
 	poke(0x5f5c, 255)	--btnp fix	
-	trace=true
+	trace=false
 	sound=false
 	active=false
 	gravity=.2
@@ -48,6 +48,14 @@ end --_draw()
 function lerp(a,b,t)
 	return a + t * (b-a)
 end --lerp()
+
+function dist_sq(a,b)
+	return (a.x-b.x)^2+(a.y-b.y)^2
+end
+
+function dist(a,b)
+	return sqrt(dist_sq(a,b))
+end
 
 function movet(a,b,m)
 	local d = abs(b-a) --distance
@@ -397,8 +405,8 @@ end --debug()
 --player
 function init_player()
 	p={     --attributes
-		--x=8,y=50,--pos
-		x=43*8,y=38*8,
+		x=8,y=50,--pos
+		--x=43*8,y=38*8,
 		speed=2,--walk speed
 		jforce=-2.5,--jump force
 		jumps=0,maxjumps=1,--jumps
@@ -806,7 +814,7 @@ function init_enemies()
 		{name="default",sp=16,
 			health=5,dmg=1,
 			speed=.5,w=7,h=7,
-			cool=10,
+			cool=20,
 			flash=colormap.gray,
 			state=state_patrol,
 			defend=enemy_defend,
@@ -815,27 +823,31 @@ function init_enemies()
 		{name="skeleton",sp=24,
 			health=4,dmg=3,
 			speed=.6,w=4,h=7,
-			cool=10},
+			cool=20,
+			},
 			
 		{name="sword skeleton",sp=25,
 			health=5,dmg=4,
 			speed=.6,w=5,h=7,
-			cool=10},
+			cool=20,
+			},
 			
 		{name="warrior skeleton",sp=26,
 			health=8,dmg=4,
 			speed=.4,w=6,h=7,
-			cool=10},
+			cool=20,
+			},
 			
 		{name="bomb skeleton",sp=27,
 			health=5,dmg=2,
 			speed=.5,w=7,h=7,
-			cool=10},
+			cool=10,
+			},
 			
 		{name="zombie",sp=40,
 			health=6,dmg=5,
 			speed=.4,w=5,h=7,
-			cool=10,
+			cool=20,
 			flash=colormap.green},
 			
 		{name="cyclops",sp=42,
@@ -1044,10 +1056,10 @@ function init_enemies()
 			flash=colormap.green},
 			
 		{name="spikes",sp=85,
-			h=3,y=4,dmg=10,speed=0},
+			h=3,y=4,dmg=10},
 			
 		{name="sm spikes",sp=86,
-			h=3,y=4,dmg=5,speed=0},
+			h=3,y=4,dmg=5},
 		
 	}
 
@@ -1067,6 +1079,9 @@ function update_enemies()
 end --update_enemies
 
 
+--------------------
+-----  wake up  ----
+--------------------
 function wake_enemy(mx,my)
 	local sp=mget(mx,my)
 	make_enemy(sp,mx*8,my*8)
@@ -1074,8 +1089,27 @@ function wake_enemy(mx,my)
 end
 
 function make_enemy(sp,x,y,flipped)
-	local c=getclass(sp)
-	local d=enemy_classes[1] --default
+	local c=enemy_classes[1] --default
+	local d=enemy_classes[1]
+	--local c=d
+	for i in all (enemy_classes) do
+		if (i.sp==sp) c=i
+	end
+	
+	--create enemy
+	local e={sp=sp,class=c,
+										x=x,y=y,tx=x,ty=y}
+		
+	for key,value in pairs(d) do
+		e[key]=value 
+	end
+	
+	for key,value in pairs(c) do
+		e[key]=value
+	end
+
+	
+	--[[
 	local e={sp=sp,
 							x=x,  y=y,
 							tx=x, ty=y,
@@ -1094,17 +1128,6 @@ function make_enemy(sp,x,y,flipped)
 							drops=c.drops,
 							invulnerable=c.invulnerable,
 							}
-	if (fget(sp,6)) then
-		e.boss=true
-		e.die=boss_die
-	end
-	if (fget(sp,5)) then
-		e.invulnerable=true
-		e.cool=300
-		e.flash=colormap.green
-		e.state=state_freeze
-	end
-	if (fget(sp,5)) e.fly=true
 	if (not e.defend)	e.defend=d.defend
 	if (not e.state) e.state=d.state
 	if (not e.flash) e.flash=d.flash
@@ -1113,42 +1136,59 @@ function make_enemy(sp,x,y,flipped)
 	if (not e.w) e.w=d.w
 	if (not e.h) e.h=d.h
 	if (not e.speed) e.speed=d.speed
+	
+	--]]	
+	--boss
+	
+	--spikes
+	if (fget(sp,4)) then
+		e.invulnerable=true
+		e.cool=300
+		e.speed=0
+		e.flash=colormap.green
+		e.state=state_freeze
+	end
+	
+	--fly
+	if (fget(sp,5)) e.fly=true
+	
+	--boss
+	if (fget(sp,6)) init_boss(e)
+	
+	e.speed *= to_num(c.flipx)
 	if (flipped) flip_enemy(e)
 	add(enemies,e)
-	if (e.boss) init_boss(e)
 end
 
-
+--[[
 function getclass(sp)
 	for e in all (enemy_classes) do
 		if (e.sp==sp) return e
 	end
 	return enemy_classes[1]
 end
+--]]
 
-
+--------------------
+-----  update   ----
+--------------------
 function update_enemy(e)
-	
 	if e.boss then
 		update_boss(e)
 	else
 		check_sleep(e)
 	end --if
 	
-	enemy_label(e)
+	--show enemy name in ui
+	if dist_sq(e,p) < 240 then
+	 set_ipanel({e.class.name})
+	end
+	
 	e:state()
 	update_flash(e)
 	combat(e)
 	--add(log,e.class.name.." "..flr(e.x)..","..flr(e.y))
 end
-
-function enemy_label(e)
-		if (e.x-p.x)^2+(e.y-p.y)^2 < 240 then
-			set_ipanel({e.class.name})
-			--if (e.boss) closedoor(e)
-		end
-end
-
 
 function check_sleep(e)
 	--sleep if offscreen+full health
@@ -1164,7 +1204,35 @@ function check_sleep(e)
 	end --if
 end
 
+function flip_enemy(e,go)
+		e.flipx = not e.flipx
+		if (go) e.flipx = to_bool(go)
+		e.speed = abs(e.speed) * to_num(e.flipx)
+end
+
+function to_num(bool)
+	if (bool) return 1
+	return -1
+end
+
+function to_bool(num)
+	if (num>0) return true
+end
+
+
+--[[
+function flipfactor(flipx)
+		if (flipx) return 1
+		return -1
+end
+--]]
+
+--------------------
+-----  bosses   ----
+--------------------
 function init_boss(e)
+	e.boss=true
+	e.die=boss_die
 	add(bosses,e)
 	for i=e.x/8-5,e.x/8+5 do
 		for j=e.y/8-1,e.y/8 do
@@ -1196,20 +1264,52 @@ function opendoors(e)
  mset(e.exit[1],e.exit[2],78)
 end 
 
---enemy states
+
+--------------------
+-----  states   ----
+--------------------
 function	state_patrol(e)
-	e.tx = e.x+e.speed
-	if e.tx<0 or e.tx+e.w>128*8
-		or bonk(e.tx,e.y,true)
-		or bonk(e.tx+e.w,e.y,true)
-		or (not e.fly 
-				and (not bonk(e.tx,e.y+8,true)
-				or not bonk(e.tx+e.w,e.y+8,true))
-			)
-		then
-		flip_enemy(e)
+	move_enemy(e)
+	if dist_sq(e,p) < 24^2 then
+		e.state=state_enraged
+	end
+end
+
+function state_enraged(e)
+	if not e.cooldown then
+		e.cooldown=e.class.cool
+	elseif e.cooldown > 0 then
+		e.cooldown -= 1
 	else
-		e.x = e.tx
+		e.cooldown=nil
+		flip_enemy(e,p.x-e.x)
+		e.state=state_aggro
+	end
+end
+
+function	state_aggro(e)
+	move_enemy(e)
+	--[[
+	if collide_xy(e,p) then
+		e.tx=e.x
+	else
+		e.x=e.tx
+	end
+	--]]
+end
+
+function state_retreat(e)
+	flip_enemy(e,e.x-p.x)
+	
+	if not e.cooldown then
+		e.cooldown=e.class.cool
+	elseif e.cooldown > 0 then
+		e.cooldown -= 1
+		move_enemy(e)
+		
+	else
+		e.cooldown=nil
+		e.state=state_enraged
 	end
 end
 
@@ -1217,8 +1317,46 @@ function state_freeze(e)
 
 end
 
+function move_enemy(e)
+	e.tx = e.x+e.speed
+	if avoid(e) then
+		flip_enemy(e)
+	else
+		e.x = e.tx
+	end
+end
+
+function avoid(e)
+	if e.tx<0 or e.tx+e.w>128*8 
+	or bonk(e.tx,e.y,true) 
+	or bonk(e.tx+e.w,e.y,true) then
+			return true
+	end
+	if (e.fly) return
+	
+	if not bonk(e.tx,e.y+8,true) or
+				not bonk(e.tx+e.w,e.y+8,true) then
+		return true
+	end
+	
+		--[[
+	if e.tx<0 or e.tx+e.w>128*8
+		or bonk(e.tx,e.y,true)
+		or bonk(e.tx+e.w,e.y,true)
+		or (not e.fly 
+				and (not bonk(e.tx,e.y+8,true)
+				or not bonk(e.tx+e.w,e.y+8,true))
+			)
+	--]]
+end
+
+--------------------
+-----  death    ----
+--------------------
 function enemy_defend(e)
-	flip_enemy(e)
+	--flip_enemy(e)
+	e.cooldown=nil
+	e.state=state_retreat
 end
 
 function enemy_die(e)
@@ -1256,16 +1394,10 @@ function spawn_slimes(e)
 	del(enemies,e)
 end --function
 
-function flip_enemy(e)
-		e.flipx = not e.flipx
-		e.speed = abs(e.speed) * flipfactor(e.flipx)
-end
 
-function flipfactor(flipx)
-		if (flipx) return 1
-		return -1
-end
-
+--------------------
+-----   draw    ----
+--------------------
 function draw_enemy(e)
 	local sprx = e.x
 	if (e.flipx) sprx=e.x-7+e.w
@@ -1273,6 +1405,13 @@ function draw_enemy(e)
 	draw_flash(e)
 	spr(e.sp,sprx,e.y,1,1,e.flipx)
 	pal()
+	
+	if e.state and 
+				e.state==state_enraged then
+	--if e.cooldown and
+	--			e.cooldown>0 then
+		print("!",e.x1,e.y1,10)
+	end
 	
 	if (trace) then
 		rect(e.x1,e.y1,e.x2,e.y2,8)
@@ -2037,15 +2176,23 @@ end -- function
 --[[ comments
 
 --jeff to do
-[] bosses more interesting
+[] spikes disappeared ?
+[] falling is broken?
+
 [] enemy states
-	[] pause / frozen
-	[] aggro / charge
-	[] retreat
+	❎ switch state if distance
+		❎ patrol (distance) > enrage
+		❎ enrage (time) > advance
+	❎ pause / frozen
+	[] knockback (w/speed+duration)
+	❎ enraged (!)
+	❎ aggro
+	❎ retreat
 	[] missile attack
 	[] melee attack
 	[] teleport
 	[] telegraph move
+[] bosses more interesting
 [] balance enemy drops
 	[] treasure drops
 	[] weapon drops
@@ -2069,6 +2216,8 @@ end -- function
 [] optimize box collision?
 
 --jeff done
+❎ dist_sq & dist functions
+❎ lots of optimizing code
 ❎ enemy heights corrected
 ❎ player death sprite
 ❎ map reload - fix
@@ -2129,8 +2278,8 @@ flags
 1 ladder
 2 enemies can't pass
 3
-4
-5 stationary hazard
+4 stationary hazard
+5 flying enemy
 6 boss
 7 enemy
 
@@ -2273,9 +2422,9 @@ cc777700cc7cccc788888888c686668800000000bbb00333bbb00000aa000aa0b999999b9b9bb9b9
 77007700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 7700770000000000008435848484848484848484a435840000000000000084358435840000000000000000000000000000000000000000343434343434547654
 77006700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-7700770000000000008435007200000000e500000035840000000000000084358435840000000000000000000000000000000000000000003434343454547654
+7700770000000000008435000000007200e500000035840000000000000084358435840000000000000000000000000000000000000000003434343454547654
 67007700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-77007700000000000084350000848494949494948484840000000000000084358435840000000000000000000000000000000000000000003434345454547654
+77007700000000000084350072848494949494948484840000000000000084358435840000000000000000000000000000000000000000003434345454547654
 77007700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 770077000000000000843584848400000000000000000000000000000000843584358400000000000000000000000043c5000000000000003434545454547654
 76007c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2429,7 +2578,7 @@ bbbbbbbbbbbbbbbbbbbbbbbbbb661155111155110000000000000000000000000000000000000000
 00000000dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0000000000
 
 __gff__
-00000000000000000000000000008080c0808080008080a08080808080808080c000a080808080808080c000c00080808080c000a0a0a0a0c00000c000808080010101010101010101010101010104010001000200a0a00100010101000000000000000000000002000000000000000000000000000000000000000000000000
+00000000000000000000000000008080c0808080008080a08080808080808080c000a080808080808080c000c00080808080c000a0a0a0a0c00000c00080808001010101010101010101010101010401000100020090900100010101000000000000000000000002000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 4242424242424242424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
