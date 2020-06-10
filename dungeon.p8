@@ -45,10 +45,6 @@ end --_draw()
 --------------------
 -----  utility  ----
 --------------------
-function lerp(a,b,t)
-	return a + t * (b-a)
-end --lerp()
-
 function dist_sq(a,b)
 	return (a.x-b.x)^2+(a.y-b.y)^2
 end
@@ -56,6 +52,10 @@ end
 function dist(a,b)
 	return sqrt(dist_sq(a,b))
 end
+
+function lerp(a,b,t)
+	return a + t * (b-a)
+end --lerp()
 
 function movet(a,b,m)
 	local d = abs(b-a) --distance
@@ -814,9 +814,18 @@ function init_enemies()
 		{name="default",sp=16,
 			health=5,dmg=1,
 			speed=.5,w=7,h=7,
-			cool=20,
+			speed_mod=1,
+			aggro_speed=1.5,
 			flash=colormap.gray,
-			state=state_patrol,
+			state_idle=state_patrol,
+			state_enraged=state_enraged,
+			state_aggro=state_aggro,
+			state_defend=state_retreat,
+			
+			cool=20, --attack cooldown
+			enraged_dur=10,
+			retreat_dur=20,
+			--state=state_patrol,
 			defend=enemy_defend,
 			die=enemy_die},
 			
@@ -1155,6 +1164,7 @@ function make_enemy(sp,x,y,flipped)
 	--boss
 	if (fget(sp,6)) init_boss(e)
 	
+	e.state=e.state_idle
 	e.speed *= to_num(c.flipx)
 	if (flipped) flip_enemy(e)
 	add(enemies,e)
@@ -1269,25 +1279,44 @@ end
 -----  states   ----
 --------------------
 function	state_patrol(e)
+	e.speed_mod=1
 	move_enemy(e)
-	if dist_sq(e,p) < 24^2 then
-		e.state=state_enraged
+	if in_range(e) then
+		e.state=e.state_enraged
 	end
 end
 
 function state_enraged(e)
+	e.speed_mod=1
 	if not e.cooldown then
-		e.cooldown=e.class.cool
+		e.cooldown=e.enraged_dur
 	elseif e.cooldown > 0 then
 		e.cooldown -= 1
 	else
 		e.cooldown=nil
-		flip_enemy(e,p.x-e.x)
-		e.state=state_aggro
+		if in_range(e) then
+			e.state=e.state_aggro
+		else
+			e.state=e.state_idle
+		end
 	end
 end
 
 function	state_aggro(e)
+	--if not e.cooldown 
+	--			or e.cooldown==0 then
+	e.speed_mod=e.aggro_speed
+	if e.cooldown 
+				and e.cooldown > 0 then
+		e.cooldown -= 1
+	else
+		if in_range(e) then
+			e.cooldown=e.cool
+			flip_enemy(e,p.x-e.x)
+		else
+			e.state=e.state_idle
+		end
+	end
 	move_enemy(e)
 	--[[
 	if collide_xy(e,p) then
@@ -1299,10 +1328,11 @@ function	state_aggro(e)
 end
 
 function state_retreat(e)
+	e.speed_mod=1
 	flip_enemy(e,e.x-p.x)
 	
 	if not e.cooldown then
-		e.cooldown=e.class.cool
+		e.cooldown=e.retreat_dur
 	elseif e.cooldown > 0 then
 		e.cooldown -= 1
 		move_enemy(e)
@@ -1318,7 +1348,7 @@ function state_freeze(e)
 end
 
 function move_enemy(e)
-	e.tx = e.x+e.speed
+	e.tx = e.x+e.speed*e.speed_mod
 	if avoid(e) then
 		flip_enemy(e)
 	else
@@ -1348,6 +1378,11 @@ function avoid(e)
 				or not bonk(e.tx+e.w,e.y+8,true))
 			)
 	--]]
+end
+
+function in_range(e)
+	return dist_sq(e,p) < 24^2 
+		and abs(e.y-p.y) < 12
 end
 
 --------------------
@@ -1406,11 +1441,10 @@ function draw_enemy(e)
 	spr(e.sp,sprx,e.y,1,1,e.flipx)
 	pal()
 	
-	if e.state and 
-				e.state==state_enraged then
-	--if e.cooldown and
-	--			e.cooldown>0 then
-		print("!",e.x1,e.y1,10)
+	if e.state==e.state_enraged then
+		print("!",e.x1,e.y1-2,10)
+	elseif e.state==e.state_aggro then
+		print("!",e.x1,e.y1-2,8)
 	end
 	
 	if (trace) then
