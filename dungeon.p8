@@ -815,7 +815,8 @@ function init_enemies()
 			health=5,dmg=1,
 			speed=.5,w=7,h=7,
 			speed_mod=1,
-			aggro_speed=1.5,
+			aggro_speed=2,
+			retreat_speed=2,
 			flash=colormap.gray,
 			state_idle=state_patrol,
 			state_enraged=state_enraged,
@@ -823,15 +824,15 @@ function init_enemies()
 			state_defend=state_retreat,
 			
 			cool=20, --attack cooldown
-			enraged_dur=10,
-			retreat_dur=20,
+			enraged_dur=15,
+			retreat_dur=30,
 			--state=state_patrol,
 			defend=enemy_defend,
 			die=enemy_die},
 			
 		{name="skeleton",sp=24,
 			health=4,dmg=3,
-			speed=.6,w=4,h=7,
+			speed=.4,w=4,h=7,
 			cool=20,
 			},
 			
@@ -1328,7 +1329,7 @@ function	state_aggro(e)
 end
 
 function state_retreat(e)
-	e.speed_mod=1
+	e.speed_mod=e.retreat_speed
 	flip_enemy(e,e.x-p.x)
 	
 	if not e.cooldown then
@@ -1383,6 +1384,7 @@ end
 function in_range(e)
 	return dist_sq(e,p) < 24^2 
 		and abs(e.y-p.y) < 12
+		and sgn(e.speed) == sgn(p.x-e.x)
 end
 
 --------------------
