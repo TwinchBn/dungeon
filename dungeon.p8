@@ -189,7 +189,7 @@ function init_ui()
 	--log={}
 	dpanel1={"you have been","pixelated!"}
 	dpanel2={"🅾️ restart"}
- spanel={"🅾️ start"}
+ spanel={"❎ start"}
 	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
 	uh={x=0,y=0,w=10,h=0,cb=8,cf=11} --health
 	ug={x=0,y=1,w=10,h=0,cf=9}--gold
@@ -231,7 +231,7 @@ function draw_ui()
  		if (btnp(🅾️)) _init()
  	else --if not p.dead
  		 title_screen()
-  	if (btnp(🅾️)) active = true
+  	if (btnp(❎)) active = true
 		end --if p.dead
  end --if active
 end
