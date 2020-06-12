@@ -7,7 +7,7 @@ __lua__
 function _init()
 	reload(0x1000, 0x1000, 0x2000)
 	poke(0x5f5c, 255)	--btnp fix	
-	trace=false
+	trace=true
 	sound=false
 	active=false
 	gravity=.2
@@ -147,6 +147,19 @@ end
  
 
 --------------------
+----  animation  ---
+--------------------
+function animate(obj,frames)
+	 --update animation
+ obj.tick+=1
+ if obj.tick%(30/obj.rate) == 0 then
+ 	obj.fr+=1
+ 	if (obj.fr>#frames) obj.fr=1
+		obj.sp = frames[obj.fr]
+	end --if
+end
+
+--------------------
 -----  buttons  ----
 --------------------
 --[[
@@ -175,8 +188,8 @@ end --btnd
 function init_ui()
 	--log={}
 	dpanel1={"you have been","pixelated!"}
-	dpanel2={"❎ restart"}
- spanel={"❎ start"}
+	dpanel2={"🅾️ restart"}
+ spanel={"🅾️ start"}
 	set_ipanel({"⬅️⬇️⬆️➡️ move"},300)
 	uh={x=0,y=0,w=10,h=0,cb=8,cf=11} --health
 	ug={x=0,y=1,w=10,h=0,cf=9}--gold
@@ -215,10 +228,10 @@ function draw_ui()
   if p.dead then
  		draw_panel(dpanel1,"c","t",1,8,true)
  		draw_panel(dpanel2,"c","b",1,8,true)
- 		if (btnp(❎)) _init()
+ 		if (btnp(🅾️)) _init()
  	else --if not p.dead
  		 title_screen()
-  	if (btnp(❎)) active = true
+  	if (btnp(🅾️)) active = true
 		end --if p.dead
  end --if active
 end
@@ -360,9 +373,11 @@ function title_screen()
 	rectfill(x+1,y+14,x+2,y+15,7)
 	rectfill(x+2,y+15,x+3,y+16,7)
 
-	draw_panel({"BY tWINCHbN",
-								"+ jEFFU wARMOUTH"},
-									"c","m",0,0,true,1)
+	--draw_panel({"BY tWINCHbN",
+	--							"+ jEFFU wARMOUTH"},
+	--								"c","m",0,0,true,1)
+	print("BY tWINCHbN",10,36,7)
+	print("+ jEFFU wARMOUTH",0,42,7)
 	draw_panel(spanel,
 								"c","b",1,8,true,2)
  		
@@ -467,10 +482,10 @@ function update_player()
 			animate(p.anim,p.state.sp)
 			return
 	end
-	
- 	move_player() --walk,climb,crouch
+	 
  	jump()
  	fall()
+ 	move_player() --walk,climb,crouch
  	set_player_state()
  	player_hitboxes()
 		player_combat()
@@ -479,47 +494,39 @@ function update_player()
  --p.cell=mget(p.x/8,p.y/8)
  --p.cx,p.cy=p.x-p.px,p.y-p.py
  p.px,p.py=p.x,p.y
-	--animate_player()
-	
+ 
 	animate(p.anim,p.state.sp)
 	update_flash(p)
 	
 	--log_player()
-	if trace then
-		add(log,"p:"..p.x..","..p.y)
-	end
+	--if trace then
+		--add(log,"p:"..p.x..","..p.y)
+	--end
 end
 
 
-function animate(obj,frames)
-	 --update animation
- obj.tick+=1
- if obj.tick%(30/obj.rate) == 0 then
- 	obj.fr+=1
- 	if (obj.fr>#frames) obj.fr=1
-		obj.sp = frames[obj.fr]
-	end --if
-end
-
-
+--move player
 function move_player()
-	--p.tx,p.ty = p.x,p.y
-	
+	p.tx,p.ty = p.x,p.y
 	if onladder() then
 		climb()
 	else
 		walk()
 	end
 	
-	--[
-	if trymove() then
+	--p.tx2,p.ty2=p.tx+p.w,p.ty+p.h
+ 
+	if not (hitground(p) 
+ 			or	hithead(p) 
+ 			or hitbounds(p)) then
 		p.x,p.y=p.tx,p.ty
 	else
 		p.tx,p.ty=p.x,p.y
-	end --]]
-
+	end 
 end --move()
 
+
+--climb
 function climb()
 	if btn(2) then
 		p.ty -= p.speed
@@ -532,11 +539,13 @@ function climb()
 	end
 end
 
+--walk
 function walk()
 	local speed=p.speed
 	
 	--tar: 50% speed
 	if (groundis(75)) speed/=2
+	if (groundis(73)) speed*=2
 	
 	--walking
 	if btn(0) then
@@ -551,43 +560,11 @@ function walk()
 		p.tx+=speed
 		--p.state=p.anim.walk
 	end
-	
 end
 
 
-function set_player_state()
-	--setting animation states
-	if p.dead then
-		p.state=p.anim.dead
-	elseif onladder() and (p.y != p.py) then
-			p.state=p.anim.climb
-	elseif (p.x != p.px) then
-		p.state = p.anim.walk
-	--elseif btn(⬇️) then
-	--		p.state=p.anim.crouch
-	else
-		p.state = p.anim.stand
-	end
-	
-	--[[
-	p.x1,p.y1=p.x,p.y
-	p.x2,p.y2=p.x+p.w,p.y+p.h
-	--]]
-end --set_player_state()
-	
---[[
-function state_collider()
-	-- set collider box (uh, later?)
-	p.w,p.h=p.state.w,p.state.h
-	p.x1,p.y1=p.x,p.y
-	p.x2,p.y2=p.x+p.w,p.y+p.h
-	--p.w=(p.state.w-p.state.x-1) -- *p.xscale
- --p.h=p.state.h-p.state.y-1
-end --state_collider()
---]]
-
 function jump()
-	if (onladder()) return
+	--if (onladder()) return
 	if btnp(⬆️) and
 				p.jumps<p.maxjumps then
 		p.dy=p.jforce
@@ -596,26 +573,26 @@ function jump()
 		p.gnd=false
 	end
 end --jump()
+--still acting weird!!!
 
 
 function onladder()
-	if touching(83) or 
-				groundis(83) or
-				touching(103) or 
-				groundis(103) then
-	 return true
-	end
+	return touching(83)
+					or groundis(83)
+					or touching(103)
+					or groundis(103)
 end --onladder()
 
+
 function center_on_ladder()
-	local x1,y1,x2,y2 = temp_exy(p)
+	local tx1,ty1,tx2,ty2 = temp_exy(p)
 	local ladder_x
-	if fget(mget(x1/8,y1/8),2) or
-				fget(mget(x1/8,y2/8),2) then
-				ladder_x = x1
-	elseif fget(mget(x2/8,y1/8),2) or
-				fget(mget(x2/8,y2/8),2) then
-				ladder_x = x2
+	if fget(mget(tx1/8,ty1/8),2) or
+				fget(mget(tx1/8,ty2/8),2) then
+				ladder_x = tx1
+	elseif fget(mget(tx2/8,ty1/8),2) or
+				fget(mget(tx2/8,ty2/8),2) then
+				ladder_x = tx2
 	end
 	if not (ladder_x==0) then
 		ladder_x = flr(p.x/8)*8 + 2
@@ -625,54 +602,62 @@ end --center_on_ladder()
 
 
 function fall()
-	if onladder() then
-		return
-	elseif not p.gnd then
+	p.gnd=fallhit(p) or onladder()
+
+	if not p.gnd then
 		p.dy+=gravity
 		p.ty+=p.dy
-		if fallhit() then
+		if fallhit(p) then
 			p.jumps=0
 			p.dy=0
 			p.gnd=true
 			p.y=flr(p.y)
 			p.ty=p.y
 			--p.y=flr(p.y/8)*8+p.state.y
-		elseif hithead() then
+		elseif hithead(p) then
 			p.dy=0
+			p.ty=p.y
 		else
 			p.y=p.ty
 		end
-	else -- if not falling
-		if not fallhit() then
-			p.gnd=false
-		end
-	end
+	end --if not p.gnd
 end --fall()
 
 
-function trymove()
- 	local hit = hitground(p) 
- 		or	hithead() 
- 		or hitbounds()
- 	return not hit
-end --trymove()
-
+function set_player_state()
+	--setting animation states
+	if p.dead then
+		p.state=p.anim.dead
+	elseif onladder() 
+			and (p.y != p.py) then
+			p.state=p.anim.climb
+	elseif (p.x != p.px) then
+		p.state = p.anim.walk
+	--elseif btn(⬇️) then
+	--		p.state=p.anim.crouch
+	else
+		p.state = p.anim.stand
+	end
+end --set_player_state()
+	
 
 function player_hitboxes()
 	p.w,p.h=p.state.w,p.state.h
 	find_exy(p)
 	
-	p.melee.x1 = p.x+p.weapon.x*p.xscale
+	p.spx = p.x1
+	p.melee.x1 = p.x1+p.weapon.x
+	p.melee.spx = p.melee.x1
+	
+ if p.flip then
+		p.spx -= (7-p.state.w)
+		p.melee.x1 = p.x1-p.weapon.w
+		p.melee.spx = p.x1-7
+	end
+	
 	p.melee.y1 = p.y1+p.weapon.y
 	p.melee.x2 = p.melee.x1+p.weapon.w
 	p.melee.y2 = p.melee.y1+p.weapon.h
-	
- p.spx = p.x1
- p.melee.spx = p.melee.x1
-	if p.flip then
-		p.spx -= (7-p.state.w)
-		p.melee.spx -= p.weapon.w - 1
-	end
 end
  
 
@@ -792,6 +777,17 @@ end
  	add(log,"xmod: "..p.w..","..p.h)
 
  	--]]
+ 	
+--[[
+function state_collider()
+	-- set collider box (uh, later?)
+	p.w,p.h=p.state.w,p.state.h
+	p.x1,p.y1=p.x,p.y
+	p.x2,p.y2=p.x+p.w,p.y+p.h
+	--p.w=(p.state.w-p.state.x-1) -- *p.xscale
+ --p.h=p.state.h-p.state.y-1
+end --state_collider()
+--]]
 -->8
 --enemies
 
@@ -1358,7 +1354,8 @@ function move_enemy(e)
 end
 
 function avoid(e)
-	if e.tx<0 or e.tx+e.w>128*8 
+	--if e.tx<0 or e.tx+e.w>128*8 
+	if hitbounds(e)
 	or bonk(e.tx,e.y,true) 
 	or bonk(e.tx+e.w,e.y,true) then
 			return true
@@ -1464,10 +1461,12 @@ function find_exy(o)
 	o.x2,o.y2=o.x1+o.w,o.y1+o.h
 end
 
-function temp_exy(o) --return box
- local x,y = o.tx,o.ty
- return x,x+o.w,y+7-o.h,y+o.h
-end --box()
+
+function temp_exy(o) 
+	--return box
+ return o.tx,o.ty+7-o.h,
+ 							o.tx+o.w,o.ty+o.h
+end --temp_exy
 
 
 function collide_xy(a,b)
@@ -1477,11 +1476,11 @@ end --collide
 
 
 function touching(sp)
-	local x1,y1,x2,y2 = temp_exy(p)
-	return mget(x1/8,y1/8) == sp 
-				 or mget(x2/8,y1/8) == sp
-				 or mget(x1/8,y2/8) == sp
-				 or mget(x2/8,y2/8) == sp
+	local tx1,ty1,tx2,ty2 = temp_exy(p)
+	return mget(tx1/8,ty1/8) == sp 
+				 or mget(tx2/8,ty1/8) == sp
+				 or mget(tx1/8,ty2/8) == sp
+				 or mget(tx2/8,ty2/8) == sp
 end --touching()
 
 
@@ -1509,43 +1508,46 @@ function bonk(x,y,enemy)
  end
 end --bonk
 
-function hithead()
-	--if --bonk(p.tx,p.ty+p.state.y) or
-				--bonk(p.tx+p.w/2,p.ty+p.state.y) then
-	local x1,x2,y=p.tx,p.tx+p.w,p.ty
-	-- p.ty+1 was not working?
-	return fget(mget(x1/8,y/8),0)
-					or fget(mget(x2/8,y/8),0)
+
+function hithead(o)
+		local tx1,ty1,tx2,ty2=temp_exy(o)
+	return fget(mget(tx1/8,ty1/8),0)
+					or fget(mget(tx2/8,ty1/8),0)
 end --hithead()
 
-function hitbounds()
-	return p.tx<0	or p.tx>128*8 
-					or p.ty<0 or p.ty+p.h>63*8
+
+function hitbounds(o)
+	local tx1,ty1,tx2,ty2=temp_exy(o)
+	return tx1<0	or tx2>127*8 
+					or ty1<0 or ty2>63*8
 					--or p.tx+p.w<0
 					--or p.tx+p.w>128*8
 					--or p.ty+p.h<0
 					--or p.ty>63*8 
 end --hitbounds()
 
-function fallhit()
-	local x1,x2,y=p.tx,p.tx+p.w,p.ty+p.h
-	
-	return fget(mget(x1/8,y/8),0)
-					or fget(mget(x2/8,y/8),0)
-					or fget(mget(x1/8,y/8),1)
-					or fget(mget(x2/8,y/8),1) 
+
+function fallhit(o)
+	--local x1,x2,y=p.tx,p.tx+p.w,p.ty+p.h
+	local tx1,ty1,tx2,ty2=temp_exy(o)
+	return fget(mget(tx1/8,ty2/8),0)
+					or fget(mget(tx2/8,ty2/8),0)
+					or fget(mget(tx1/8,ty2/8),1)
+					or fget(mget(tx2/8,ty2/8),1) 
 end
 
+
 function hitground(o)
---one point only
-	if bonk(o.tx,o.ty+o.h) or
-				bonk(o.tx+o.w,o.ty+o.h) then
-		return true
-	end
+--two points
+	local tx1,ty1,tx2,ty2=temp_exy(o)
+	
+	return bonk(tx1,ty2) 
+					or bonk(tx2,ty2) 
 end --hitground()
 
+
 function groundis(sp)
- if mget((p.tx+p.w/2)/8,(p.ty+10)/8) == sp then
+ if mget((p.tx+p.w/2)/8,(p.ty+8)/8) == sp then
  	return true
  end
 end
@@ -2154,8 +2156,8 @@ function update_items()
 	--local onx=p.x+p.w/2
 	--local ony=p.y+p.h/2
 	local near_items={}
-	for i=1,#items do
-		local item=items[i]
+	for item in all (items) do
+		--local item=items[i]
 		local x,y,near=near(item.sprite)
 		
 		--if mget(onx/8,ony/8)==item.sprite then
