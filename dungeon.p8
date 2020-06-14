@@ -7,7 +7,7 @@ __lua__
 function _init()
 	reload(0x1000, 0x1000, 0x2000)
 	poke(0x5f5c, 255)	--btnp fix	
-	trace=true
+	trace=false
 	sound=false
 	active=false
 	gravity=.2
@@ -25,6 +25,7 @@ function _update()
 	if active then
  	update_enemies()
  	update_items()
+ 	update_location()
  	update_cam()
  end
  update_ui()
@@ -97,12 +98,19 @@ end
 
 function update_cam()
 	--no lerp
-	--[
 	cam.x=p.x-cam.w
 	cam.y=p.y-cam.h
-	--]]
-	
-	--lerp cam x speed
+	--camera_lerp()
+end --update_cam()
+
+function draw_cam()
+	--camera(lerpx-camw,lerpy-camh)
+	camera(cam.x,cam.y)
+end
+
+--[[
+function camera_lerp()
+	--lerp cam x sp\eed
 	--[[
 	cam.cx=movet(cam.cx,p.cx,1/5)
 	cam.cy=movet(cam.cy,p.cy,1/5)
@@ -123,6 +131,7 @@ function update_cam()
 			if (abs(lerpx-p.x)<1) lerpx=p.x
 		end
 	end
+	
 		--update cam y
 	if lerpy==p.y then
 		camy_timer=20
@@ -138,12 +147,9 @@ function update_cam()
  	--lerpy=lerp(lerpy,p.y,0.15)
  end
  --]]
-end --update_cam()
 
-function draw_cam()
-	--camera(lerpx-camw,lerpy-camh)
-	camera(cam.x,cam.y)
 end
+--]]
  
 
 --------------------
@@ -203,13 +209,31 @@ function update_ui()
 		if ipanel_timer <=0 then
 			ipanel=nil
 			ipanel_timer=nil
+			ipriority=nil
+		end
+	end
+	if lpanel_timer then
+		lpanel_timer -= 1
+		if lpanel_timer <=0 then
+			lpanel=nil
+			lpanel_timer=nil
 		end
 	end
 end --update_ui()
 
 function set_ipanel(msg,t)
-	ipanel=msg
- if (msg and t==nil) ipanel_timer=30
+	if msg and not ipriority then
+ 	ipanel=msg
+  ipanel_timer=30
+ 	if (t==true) ipriority=true
+ end
+end
+
+function set_lpanel(msg)
+	lpanel=msg
+ if msg then
+ 	lpanel_timer=60
+ end
 end
 
 function draw_ui()
@@ -222,6 +246,7 @@ function draw_ui()
  	goldbar()
  	draw_runes()
 		if (ipanel) draw_panel(ipanel,"c","b",1,8,true)
+ 	if (lpanel) draw_panel(lpanel,"c","t",16,16,true)
  	if (log) draw_panel(log,"l","t",1,8)
  	if (trace and onladder()) spr(83,0,56) 
 	else --if not active
@@ -296,8 +321,12 @@ function draw_panel(panel,horz,vert,fill,outline,centered,gap)
 	if (vert=="b") y=gameh-h-1
 	if (vert=="c") y=gameh/2-h/2
 	if (vert=="m") y=gameh/2+h/3
-	rectfill(x,y,x+w-2,y+h-1,fill)
-	rect(x-1,y-1,x+w-1,y+h,outline)
+	if fill<16 then
+	 rectfill(x,y,x+w-2,y+h-1,fill)
+	end --if
+	if outline<16 then
+	 rect(x-1,y-1,x+w-1,y+h,outline)
+	end --if
 	for i = 1,#panel do
 		local ln=panel[i]
 		local mod=0
@@ -421,7 +450,7 @@ end --debug()
 function init_player()
 	p={     --attributes
 		x=8,y=50,--pos
-		--x=43*8,y=38*8,
+		--x=20*8,y=27*8,
 		speed=2,--walk speed
 		jforce=-2.5,--jump force
 		jumps=0,maxjumps=1,--jumps
@@ -1360,6 +1389,7 @@ function avoid(e)
 	or bonk(e.tx+e.w,e.y,true) then
 			return true
 	end
+	
 	if (e.fly) return
 	
 	if not bonk(e.tx,e.y+8,true) or
@@ -1724,7 +1754,7 @@ function init_weapons()
 		axe={
 			name="axe",
 			dmg=4,t=5,r=4,
-			x=5,y=0,w=4,h=7,
+			x=4,y=0,w=4,h=7,
 			dur=5,cooldown=5,
 			melee=true,
 			sp={98,100,99},
@@ -2088,14 +2118,29 @@ function init_items()
 				p.weapon = weapons.axe
 			end
 	 },
-	 
-	 --locations
-	 {loc="outside",sprite=69},
-		{loc="beach",sprite=87},
-		{loc="ice caves",sprite=72},
-		{loc="music jungle",sprite=92},
-		{loc="aliens home",sprite=67},
-		{loc="unmeables cavern",sprite=90},
+	}
+	
+	locations={
+	 {name="prison",
+	 	x1=0,y1=0,x2=23,y2=28},
+	 {name="outside",
+	 	x1=24,y1=15,x2=60,y2=30},
+	 {name="outside",
+	 	x1=17,y1=29,x2=38,y2=35},
+		{name="beach",
+	 	x1=40,y1=32,x2=66,y2=41},
+		{name="ice caves",
+	 	x1=63,y1=26,x2=78,y2=32},
+		{name="ice caves",
+	 	x1=67,y1=33,x2=78,y2=38},
+		{name="ice caves",
+	 	x1=68,y1=39,x2=98,y2=59},
+		{name="music jungle",
+	 	x1=99,y1=50,x2=127,y2=63},
+		{name="aliens home",
+	 	x1=101,y1=35,x2=127,y2=49},
+		{name="unmeables cavern",
+	 	x1=81,y1=14,x2=103,y2=34},
 	}
 	--[[
 			 blocked=function()
@@ -2132,75 +2177,85 @@ function init_items()
 		17 sword
 		18 pickaxe
 	--]]
-
 end
 
---[[
-function already_got_one(name)
-	if p then
-		return name == p.weapon.name
-	end
-end
-
-function set_weapon(x,y,weapon)
-	if p then
-		mset(x,y,p.weapon.drop_sp)
-		p.weapon = weapon
-	end
-end
---]]
- 
 
 --loop through item types
 function update_items()
-	--local onx=p.x+p.w/2
-	--local ony=p.y+p.h/2
 	local near_items={}
+	local unblocked_items={}
 	for item in all (items) do
-		--local item=items[i]
 		local x,y,near=near(item.sprite)
-		
-		--if mget(onx/8,ony/8)==item.sprite then
-			--behavior(onx,ony,item)
-			--return
-
 		if near then
-			behavior(x,y,item)
-			return
+			local i={}
+			i.x,i.y=x*8,y*8
+			i.item=item
+			i.dsq=dist_sq(i,p)
+			add(near_items,i)
+			if not isblocked(item) then
+				add(unblocked_items,i)
+			end
+			--behavior(x,y,item)
+			--return
 		end --if -- [ 
 	end --loop to see if near
 	
-	--find closest
+	--find nearest not blocked
+	--find nearest
+	if #near_items > 0 then
+		local ni=find_nearest(near_items)
+		if isblocked(ni.item) 
+			and #unblocked_items > 0 then
+			ni=find_nearest(unblocked_items)
+		end
+		--if not ni==nil then
+		behavior(ni.x/8,ni.y/8,ni.item)
+		--end --if
+	end --if
 end --update_items()
 
 
+function find_nearest(t)
+	local dsq = 1000
+	local ni
+	for i in all (t) do
+		if i.dsq < dsq then
+			dsq=i.dsq
+			ni=i
+		end --if
+	end --for
+	return ni
+end
+
+function isblocked(item)
+	return item.blocked 
+		and item.blocked()
+end
+
 --set generic item behavior
 function behavior(x,y,item)
-	if item.loc then
-		set_ipanel({item.loc})
-		return
-	end
-	
+	local priority=false
 	local verb=item.verb
-	if (verb==nil) verb={"take","taken"}
+	if verb==nil then
+		verb={"take","taken"}
+	end --if
+	priority = verb[1]=="equip"
 	local msg=item.msg
 	if msg==nil then
-		msg={item.name}
-	else
+	--	msg={item.name}
+	--else
 		msg={
 			verb[1].." "..item.name,
 			item.name.." "..verb[2],
 			item.name}
 	end
 	
-	if item.blocked and item.blocked() 
-		then
+	if isblocked(item) then
 		set_ipanel({msg[3]})
 	else
 		set_ipanel({"🅾️ "..msg[1]})
-		if (item.loc) item.loc()
 		if btnp(🅾️) then
-			set_ipanel({msg[2]})
+			set_ipanel({msg[2]},priority)
 			if (item.action) item.action(x,y)
 			if (verb[1]=="take") mset(x,y,0)
 			if (item.newsprite) mset(x,y,item.newsprite)
@@ -2209,6 +2264,31 @@ function behavior(x,y,item)
 	end --if item.blocked
 end -- function
 
+
+function update_location()
+	local px,py=p.x/8,p.y/8
+	for loc in all (locations) do
+		--if groundis(loc.sprite) then
+		if px>=loc.x1 and
+					px<=loc.x2 and
+					py>=loc.y1 and
+					py<=loc.y2 then
+		 --show_location(loc)
+		 --if (loc_name == location) return	
+		 set_lpanel({loc.name})
+			location = loc.name
+		end
+	end --for loc
+end
+
+--[[
+function show_location(loc)
+	--if not location == loc.name then
+		set_ipanel({loc.name})
+		location = loc.name
+	--end
+end
+--]]
 -->8
 --notes
 --[[ comments
@@ -2225,7 +2305,11 @@ end -- function
 	❎ enraged (!)
 	❎ aggro
 	❎ retreat
-	[] missile attack
+	[] enraged is annoying
+	[] maybe only bosses enrage?
+	[] tweak location sign
+	[] boss health bar
+	[] missile retreat + throw
 	[] melee attack
 	[] teleport
 	[] telegraph move
@@ -2429,7 +2513,7 @@ cc777700cc7cccc788888888c686668800000000bbb00333bbb00000aa000aa0b999999b9b9bb9b9
 75357500008484000000007235840000000000000095959595959595959595959595959595953595000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000540000000000545454c4c4c4c4c4c4c4c4c4c4c4c4000000007500f4000000e5e5e5e5757575757575757575000000
 75357500008484848484848435840000000000000000000000000000000000000000000000343534000000000000000000000000000000000000000000000000
-000000000000000000000000000000000054616100005400000000000000000075350000f6e5e100004575007564646464646464757575757575757500000000
+000000000000000000000000000000000054616100005400000000000000000075350000f6e5e100004575007564646464646464757527757575757500000000
 75357500000000000000008435840000000000000000000000000000000000000000000000343534000000000000000000000000000000000000000000000000
 00000000000000000000000000000000005454545454540000000000000000007535756464646455557500007575757575757504000000000000000004757575
 75357500000000000000008435840000000000000000000000000000000000000000000000343534000000000000000000000000000034343434343434343434
