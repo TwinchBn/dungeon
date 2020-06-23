@@ -2307,7 +2307,6 @@ end
 	❎ retreat
 	[] enraged is annoying
 	[] maybe only bosses enrage?
-	[] tweak location sign
 	[] boss health bar
 	[] missile retreat + throw
 	[] melee attack
@@ -2324,9 +2323,6 @@ end
 	[] staff w/missiles
 	[] fists
 	[] more weapon sub-types
-❎ make sure all runes work
-	❎ rune inventory
-	❎ display active runes
 	[] fist rune?
 	[] key rune?
 	[] slime rune?
@@ -2334,9 +2330,17 @@ end
 [] status effects
 	[] weapons with status
 [] fine tune hp,dmg,drops
-[] optimize box collision?
+❎ optimize box collision?
 
 --jeff done
+❎ equip weapon has ui priority
+❎ fix weapon hitboxes
+❎ fixed item pickup mechanic
+❎ target nearest item unless blocked
+❎ fix location ui & coords
+❎ make sure all runes work
+❎ rune inventory
+❎ display active runes
 ❎ player jump/fall broken?
 ❎ dist_sq & dist functions
 ❎ lots of optimizing code
